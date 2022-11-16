@@ -8,6 +8,7 @@ defmodule FIQLEx.MixProject do
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      elixirc_paths: elixirc_paths(Mix.env()),
       name: "FIQLEx",
       description: "FIQL (Feed Item Query Language) parser and query build",
       package: package(),
@@ -35,10 +36,14 @@ defmodule FIQLEx.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:ecto, ">= 3.4.2"},
+      {:timex, "~> 3.5"},
       {:ecto_sql, ">= 3.4.2"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
       # {:dep_from_hexpm, "~> 0.3.0"},
