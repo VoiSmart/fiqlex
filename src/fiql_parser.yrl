@@ -2,6 +2,10 @@ Nonterminals or_expression and_expression constraint group arguments list_argume
 Terminals '(' ')' or_op and_op selector arg_float arg_int arg_bool value comparison equal not_equal.
 Rootsymbol or_expression.
 
+Right 100 or_op.
+Right 200 and_op.
+
+
 or_expression -> and_expression                       : '$1'.
 or_expression -> or_expression or_op or_expression    : {or_op, '$1', '$3'}.
 

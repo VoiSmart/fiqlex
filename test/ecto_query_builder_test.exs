@@ -386,13 +386,14 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.firstname == ^"'Hello'" and
-            (u0.sessionexpire >= ^"10" and (u0.username == ^"'Malcom'" or not is_nil(u0.lastname))),
+          (u0.firstname == ^"'Hello'" and
+             (u0.sessionexpire >= ^"10" and u0.username == ^"'Malcom'")) or
+            not is_nil(u0.lastname),
         order_by: [],
         select: [:firstname, :sessionexpire, :username, :lastname]
       )
 
-    assert inspect(expected) == inspect(result)
+    assert(inspect(expected) == inspect(result))
   end
 
   test "fiql filter with only invalid selector field" do

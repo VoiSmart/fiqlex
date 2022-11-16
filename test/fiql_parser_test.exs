@@ -248,6 +248,17 @@ defmodule FIQLExParserTest do
                 {:op, {:selector_and_value, "my_selector3", :equal, "value3"}}}}}
   end
 
+  test "Without parenthesis  or, and" do
+    payload = "my_selector1==value1,my_selector2==value2;my_selector3==value3"
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok,
+              {:or_op, {:op, {:selector_and_value, "my_selector1", :equal, "value1"}},
+               {:and_op, {:op, {:selector_and_value, "my_selector2", :equal, "value2"}},
+                {:op, {:selector_and_value, "my_selector3", :equal, "value3"}}}}}
+  end
+
   test "Parenthesis with or, and" do
     payload = "my_selector1==value1,(my_selector2==value2;my_selector3==value3)"
     {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
