@@ -97,11 +97,10 @@ defmodule FIQLEx do
   """
   @spec build_query(ast(), atom(), Keyword.t()) :: {:ok, any()} | {:error, any()}
   def build_query(ast, module, opts \\ []) do
-    state = apply(module, :init, [ast, opts])
+    state = module.init(ast, opts)
 
-    with {:ok, state} <- run_ast(ast, ast, module, state) do
-      apply(module, :build, [ast, state])
-    else
+    case run_ast(ast, ast, module, state) do
+      {:ok, state} -> module.build(ast, state)
       {:error, err} -> {:error, err}
     end
   end
@@ -136,27 +135,27 @@ defmodule FIQLEx do
   end
 
   defp run_ast({:or_op, exp1, exp2}, ast, module, state) do
-    apply(module, :handle_or_expression, [exp1, exp2, ast, state])
+    module.handle_or_expression(exp1, exp2, ast, state)
   end
 
   defp run_ast({:and_op, exp1, exp2}, ast, module, state) do
-    apply(module, :handle_and_expression, [exp1, exp2, ast, state])
+    module.handle_and_expression(exp1, exp2, ast, state)
   end
 
   defp run_ast({:op, exp}, ast, module, state) do
-    apply(module, :handle_expression, [exp, ast, state])
+    module.handle_expression(exp, ast, state)
   end
 
   defp run_ast({:selector, selector_name}, ast, module, state) do
-    apply(module, :handle_selector, [selector_name, ast, state])
+    module.handle_selector(selector_name, ast, state)
   end
 
   defp run_ast({:selector_and_value, selector_name, :equal, value}, ast, module, state) do
-    apply(module, :handle_selector_and_value, [selector_name, :equal, value, ast, state])
+    module.handle_selector_and_value(selector_name, :equal, value, ast, state)
   end
 
   defp run_ast({:selector_and_value, selector_name, :not_equal, value}, ast, module, state) do
-    apply(module, :handle_selector_and_value, [selector_name, :not_equal, value, ast, state])
+    module.handle_selector_and_value(selector_name, :not_equal, value, ast, state)
   end
 
   defp run_ast(
@@ -165,12 +164,12 @@ defmodule FIQLEx do
          module,
          state
        ) do
-    apply(module, :handle_selector_and_value_with_comparison, [
+    module.handle_selector_and_value_with_comparison(
       selector_name,
       comparison,
       value,
       ast,
       state
-    ])
+    )
   end
 end

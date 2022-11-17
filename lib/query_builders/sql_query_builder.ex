@@ -144,6 +144,8 @@ defmodule FIQLEx.QueryBuilders.SQLQueryBuilder do
   """
   use FIQLEx.QueryBuilder
 
+  alias Ecto.Adapters.SQL
+
   @impl true
   def init(_ast, opts) do
     {"", opts}
@@ -183,7 +185,7 @@ defmodule FIQLEx.QueryBuilders.SQLQueryBuilder do
         {:ok, final_query}
 
       {repo, model} ->
-        Ecto.Adapters.SQL.query(repo, final_query, [])
+        SQL.query(repo, final_query, [])
         |> load_into_model(repo, model)
     end
   end
@@ -285,9 +287,8 @@ defmodule FIQLEx.QueryBuilders.SQLQueryBuilder do
 
   @impl true
   def handle_expression(exp, ast, {query, opts}) do
-    with {:ok, {constraint, _opts}} <- handle_ast(exp, ast, {query, opts}) do
-      {:ok, {constraint, opts}}
-    else
+    case handle_ast(exp, ast, {query, opts}) do
+      {:ok, {constraint, _opts}} -> {:ok, {constraint, opts}}
       {:error, err} -> {:error, err}
     end
   end

@@ -321,6 +321,7 @@ defmodule FIQLEx.QueryBuilder do
   end
 
   defmodule Helpers do
+    @moduledoc false
     @spec do_handle_ast(FIQLEx.ast(), FIQLEx.ast(), atom(), any()) ::
             {:ok, any()} | {:error, any()}
     def do_handle_ast(curr_ast, ast, module, state) do

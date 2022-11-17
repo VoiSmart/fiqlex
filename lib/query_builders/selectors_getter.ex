@@ -1,4 +1,6 @@
 defmodule FIQLEx.SelectorsGetter do
+  @moduledoc false
+
   use FIQLEx.QueryBuilder
 
   @impl true
