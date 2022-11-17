@@ -635,4 +635,12 @@ defmodule EctoQueryBuilderTest do
         order_by: [{:asc, :firstname}]
       )
   end
+
+  test "build ecto query without a schema give error" do
+    {:error, :selector_not_allowed} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        select: :from_selectors,
+        order_by: [{:asc, :firstname}]
+      )
+  end
 end

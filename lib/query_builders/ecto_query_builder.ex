@@ -31,14 +31,17 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def init(_ast, opts) do
-    schema = Keyword.get(opts, :schema)
-    schema_fields = Enum.map(schema.__schema__(:fields), fn field -> Atom.to_string(field) end)
+    schema_fields =
+      case Keyword.get(opts, :schema) do
+        nil -> []
+        schema -> Enum.map(schema.__schema__(:fields), fn field -> Atom.to_string(field) end)
+      end
+
     {"", Keyword.put(opts, :schema_fields, schema_fields)}
   end
 
   @impl true
   def build(ast, {query, opts}) do
-    # TODO validate keys in options
     schema = Keyword.get(opts, :schema)
     order_by = Keyword.get(opts, :order_by, [])
 
