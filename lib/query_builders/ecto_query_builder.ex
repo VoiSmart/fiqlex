@@ -9,6 +9,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   * `only`: A list with the only fields to accept in the query (if `only` and `except` are both provided, `only` is used)
   * `except`: A list with the fields to reject in the query (if `only` and `except` are both provided, `only` is used)
   * `order_by`: A tuple list {direction, field} for order by to be added to the query. Direction is :asc or :desc, field is an atom
+  * `limit`: A limit for the query
   * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
   * `transformer`: Function that takes a selector and its value as parameter and must return the transformed value
 
@@ -41,45 +42,16 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
     select = get_select_option(ast, opts)
 
+    limit = Keyword.get(opts, :limit)
+
     final_query =
       schema
       |> add_select(select)
       |> order_by(^add_order_by(order_by))
       |> where(^query)
+      |> add_limit(limit)
 
     {:ok, final_query}
-  end
-
-  defp add_select(schema, []), do: schema
-
-  defp add_select(schema, select) do
-    select(schema, ^select)
-  end
-
-  defp add_order_by(order_by) do
-    order_by
-    |> Enum.map(fn {direction, field} -> {direction, dynamic([q], field(q, ^field))} end)
-    |> Keyword.new()
-  end
-
-  defp is_selector_allowed(selector, opts) do
-    case Keyword.get(opts, :only, nil) do
-      nil ->
-        case Keyword.get(opts, :except, nil) do
-          nil ->
-            true
-
-          fields ->
-            not Enum.member?(fields, selector)
-        end
-
-      fields ->
-        Enum.member?(fields, selector)
-    end
-  end
-
-  defp is_case_insensitive(opts) do
-    not Keyword.get(opts, :case_sensitive, true)
   end
 
   def binary_equal(selector_name, value, opts) do
@@ -470,6 +442,44 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   defp escape_list(list), do: Enum.map(list, &escape_string/1)
 
   defp string_to_atom(value), do: String.to_existing_atom(value)
+
+  defp add_select(schema, []), do: schema
+
+  defp add_select(schema, select) do
+    select(schema, ^select)
+  end
+
+  defp add_limit(schema, nil), do: schema
+
+  defp add_limit(schema, limit) do
+    limit(schema, ^limit)
+  end
+
+  defp add_order_by(order_by) do
+    order_by
+    |> Enum.map(fn {direction, field} -> {direction, dynamic([q], field(q, ^field))} end)
+    |> Keyword.new()
+  end
+
+  defp is_selector_allowed(selector, opts) do
+    case Keyword.get(opts, :only, nil) do
+      nil ->
+        case Keyword.get(opts, :except, nil) do
+          nil ->
+            true
+
+          fields ->
+            not Enum.member?(fields, selector)
+        end
+
+      fields ->
+        Enum.member?(fields, selector)
+    end
+  end
+
+  defp is_case_insensitive(opts) do
+    not Keyword.get(opts, :case_sensitive, true)
+  end
 
   defp get_select_option(ast, opts) do
     case Keyword.get(opts, :select, :all) do

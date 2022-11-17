@@ -544,6 +544,25 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "single fiql filter with limit" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors,
+        limit: 103
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.firstname == ^"'John'",
+        order_by: [],
+        limit: ^103,
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "fiql filter with invalid comparison operator" do
     {:error, _error} =
       FIQLEx.build_query(FIQLEx.parse!("firstname=gk=John"), EctoQueryBuilder,
