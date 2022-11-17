@@ -54,6 +54,23 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "single fiql filter with select some binary fields" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: ["firstname", "username"]
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.firstname == ^"'John'",
+        order_by: [],
+        select: [:firstname, :username]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "fiql filter comparing integer numbers with gt and lt operator" do
     {:ok, result} =
       FIQLEx.build_query(
@@ -114,7 +131,7 @@ defmodule EctoQueryBuilderTest do
   test "invalid comparison fiql filter " do
     {:error, :invalid_comparison_value} =
       FIQLEx.build_query(
-        FIQLEx.parse!("name=ge=John"),
+        FIQLEx.parse!("firstname=ge=John"),
         EctoQueryBuilder,
         schema: UserSchema,
         select: :from_selectors
@@ -406,6 +423,34 @@ defmodule EctoQueryBuilderTest do
       )
   end
 
+  test "fiql filter with selector not in ecto schema" do
+    {:error, :selector_not_allowed} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("name=ge=John"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+  end
+
+  test "fiql filter with only valid selector atom field" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("firstname==John,username==user"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        only: [:firstname, :username]
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.firstname == ^"'John'" or u0.username == ^"'user'",
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "fiql filter with only valid selector field" do
     {:ok, result} =
       FIQLEx.build_query(
@@ -428,6 +473,16 @@ defmodule EctoQueryBuilderTest do
         EctoQueryBuilder,
         schema: UserSchema,
         except: ["firstname"]
+      )
+  end
+
+  test "fiql filter with except valid selector atom field" do
+    {:error, :selector_not_allowed} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("firstname==John"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        except: [:firstname]
       )
   end
 

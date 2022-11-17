@@ -9,5 +9,6 @@ defmodule FIQLEx.Test.Support.User do
     field(:middlename, :string)
     field(:sessionexpire, :integer, default: 3600)
     field(:enabled, :boolean)
+    timestamps()
   end
 end

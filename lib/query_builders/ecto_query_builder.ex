@@ -6,8 +6,8 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   * `schema`: The schema name to use in the `FROM` statement
   * `select`: `SELECT` statement to build (_see below_).
-  * `only`: A list with the only fields to accept in the query (if `only` and `except` are both provided, `only` is used)
-  * `except`: A list with the fields to reject in the query (if `only` and `except` are both provided, `only` is used)
+  * `only`: A list of atom/binary with the only fields to accept in the query (if `only` and `except` are both provided, `only` is used)
+  * `except`: A list of atom/binary with the fields to reject in the query (if `only` and `except` are both provided, `only` is used)
   * `order_by`: A tuple list {direction, field} for order by to be added to the query. Direction is :asc or :desc, field is an atom
   * `limit`: A limit for the query
   * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
@@ -21,7 +21,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   * `:all`: use `SELECT *` (default value)
   * `:from_selectors`: Searches for all selectors in the FIQL AST and use them as `SELECT` statement.
   For instance, for the following query: `age=ge=25;name==*Doe`, the `SELECT` statement will be `SELECT age, name`
-  * `selectors`: You specify a list of atom items you want to use in the `SELECT` statement.
+  * `selectors`: You specify a list of atom/binary items you want to use in the `SELECT` statement.
   """
   use FIQLEx.QueryBuilder
 
@@ -31,7 +31,9 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def init(_ast, opts) do
-    {"", opts}
+    schema = Keyword.get(opts, :schema)
+    schema_fields = Enum.map(schema.__schema__(:fields), fn field -> Atom.to_string(field) end)
+    {"", Keyword.put(opts, :schema_fields, schema_fields)}
   end
 
   @impl true
@@ -130,7 +132,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def handle_selector(selector_name, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], not is_nil(field(q, ^selector_name))), opts}}
     else
@@ -147,7 +149,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :equal, value, _ast, {_query, opts})
        when is_binary(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       if String.starts_with?(value, "*") || String.ends_with?(value, "*") do
         {:ok, {binary_like(selector_name, value, opts), opts}}
       else
@@ -160,7 +162,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :equal, value, _ast, {_query, opts})
        when is_list(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       values = value |> escape_list()
 
@@ -171,7 +173,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp do_handle_selector_and_value(selector_name, :equal, true, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) == ^to_string(true))}}
     else
@@ -180,7 +182,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp do_handle_selector_and_value(selector_name, :equal, false, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) == ^to_string(false)), opts}}
     else
@@ -189,7 +191,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp do_handle_selector_and_value(selector_name, :equal, value, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       {:ok, {binary_equal(selector_name, to_string(value), opts), opts}}
     else
       {:error, :selector_not_allowed}
@@ -198,7 +200,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :not_equal, value, _ast, {_query, opts})
        when is_binary(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       if String.starts_with?(value, "*") || String.ends_with?(value, "*") do
         {:ok, {binary_not_like(selector_name, value, opts), opts}}
       else
@@ -211,7 +213,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :not_equal, value, _ast, {_query, opts})
        when is_list(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       values = value |> escape_list()
       {:ok, {dynamic([q], field(q, ^selector_name) not in ^values), opts}}
@@ -221,7 +223,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp do_handle_selector_and_value(selector_name, :not_equal, true, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) != ^to_string(true)), opts}}
     else
@@ -230,7 +232,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp do_handle_selector_and_value(selector_name, :not_equal, false, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) != ^to_string(false)), opts}}
     else
@@ -239,7 +241,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp do_handle_selector_and_value(selector_name, :not_equal, value, _ast, {_query, opts}) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       {:ok, {binary_not_equal(selector_name, to_string(value), opts), opts}}
     else
       {:error, :selector_not_allowed}
@@ -261,7 +263,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_number(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) >= ^to_string(value)), opts}}
     else
@@ -277,7 +279,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_number(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) > ^to_string(value)), opts}}
     else
@@ -293,7 +295,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_number(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) <= ^to_string(value)), opts}}
     else
@@ -309,7 +311,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_number(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
       {:ok, {dynamic([q], field(q, ^selector_name) < ^to_string(value)), opts}}
     else
@@ -325,7 +327,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_binary(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
 
       case maybe_date_time_value(value) do
@@ -352,7 +354,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_binary(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
 
       case maybe_date_time_value(value) do
@@ -379,7 +381,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_binary(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
 
       case maybe_date_time_value(value) do
@@ -406,7 +408,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
          {_query, opts}
        )
        when is_binary(value) do
-    if is_selector_allowed(selector_name, opts) do
+    if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
 
       case maybe_date_time_value(value) do
@@ -461,19 +463,38 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     |> Keyword.new()
   end
 
-  defp is_selector_allowed(selector, opts) do
+  defp is_selector_allowed?(selector, opts) do
+    schema_fields = Keyword.get(opts, :schema_fields)
+
+    case selector in schema_fields do
+      true ->
+        selector = convert_selector(selector)
+        get_select_only_option(selector, opts)
+
+      false ->
+        false
+    end
+  end
+
+  defp get_select_only_option(selector, opts) do
     case Keyword.get(opts, :only, nil) do
       nil ->
-        case Keyword.get(opts, :except, nil) do
-          nil ->
-            true
-
-          fields ->
-            not Enum.member?(fields, selector)
-        end
+        get_select_except_option(selector, opts)
 
       fields ->
+        fields = Enum.map(fields, fn s -> convert_selector(s) end)
         Enum.member?(fields, selector)
+    end
+  end
+
+  defp get_select_except_option(selector, opts) do
+    case Keyword.get(opts, :except, nil) do
+      nil ->
+        true
+
+      fields ->
+        fields = Enum.map(fields, fn s -> convert_selector(s) end)
+        not Enum.member?(fields, selector)
     end
   end
 
@@ -492,7 +513,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         |> Enum.map(fn s -> string_to_atom(s) end)
 
       selectors ->
-        selectors
+        Enum.map(selectors, fn s -> convert_selector(s) end)
     end
   end
 
@@ -523,6 +544,9 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         {:error, :invalid_comparison_value}
     end
   end
+
+  defp convert_selector(value) when is_atom(value), do: value
+  defp convert_selector(value), do: string_to_atom(value)
 
   defp parse_duration("P" <> rest), do: {:ok, "P" <> rest, 1}
 
