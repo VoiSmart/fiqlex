@@ -16,8 +16,8 @@ constraint -> selector not_equal arguments    : {op, {selector_and_value, list_t
 
 group -> '(' or_expression ')'  : '$2'.
 
-arguments -> value          : list_to_binary(extract_token('$1')).
-arguments -> selector       : list_to_binary(extract_token('$1')).
+arguments -> value          : unicode:characters_to_binary(extract_token('$1')).
+arguments -> selector       : unicode:characters_to_binary(extract_token('$1')).
 arguments -> arg_float      : extract_token('$1').
 arguments -> arg_int        : extract_token('$1').
 arguments -> arg_bool       : extract_token('$1').
