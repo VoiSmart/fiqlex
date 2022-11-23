@@ -153,8 +153,6 @@ defmodule FIQLEx.QueryBuilders.SQLQueryBuilder do
 
   @impl true
   def build(ast, {query, opts}) do
-    query = :binary.bin_to_list(query) |> to_string
-
     select =
       case Keyword.get(opts, :select, :all) do
         :all ->

@@ -24,6 +24,23 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "single fiql filter with an unicode value" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==さよなら"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.firstname == ^"'さよなら'",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "single fiql filter with select all fields" do
     {:ok, result} =
       FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
