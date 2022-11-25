@@ -635,6 +635,24 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "fiql filter using a trasnformer function" do
+    transformer_fn = fn _selector, value -> {"lastname", "Another#{value}"} end
+
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("anotherschema.lastname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        transformer: transformer_fn
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.lastname == ^"'AnotherJohn'",
+        order_by: []
+      )
+
+    assert(inspect(expected) == inspect(result))
+  end
+
   test "fiql filter with invalid comparison operator" do
     {:error, _error} =
       FIQLEx.build_query(FIQLEx.parse!("firstname=gk=John"), EctoQueryBuilder,

@@ -11,7 +11,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   * `order_by`: A tuple list {direction, field} for order by to be added to the query. Direction is :asc or :desc, field is an atom
   * `limit`: A limit for the query
   * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
-  * `transformer`: Function that takes a selector and its value as parameter and must return the transformed value
+  * `transformer`: Function that takes a selector and its value as parameter and must return a tuple {new_selector, new_value} with the transformed values
 
 
   ### Select option
@@ -103,7 +103,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def identity_transformer(_selector, value), do: value
+  def identity_transformer(selector, value), do: {selector, value}
 
   @impl true
   def handle_or_expression(exp1, exp2, ast, {query, opts}) do
@@ -145,9 +145,10 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def handle_selector_and_value(selector_name, op, value, ast, {query, opts}) do
-    new_value = Keyword.get(opts, :transformer, &identity_transformer/2).(selector_name, value)
+    {new_selector_name, new_value} =
+      Keyword.get(opts, :transformer, &identity_transformer/2).(selector_name, value)
 
-    do_handle_selector_and_value(selector_name, op, new_value, ast, {query, opts})
+    do_handle_selector_and_value(new_selector_name, op, new_value, ast, {query, opts})
   end
 
   defp do_handle_selector_and_value(selector_name, :equal, value, _ast, {_query, opts})
@@ -253,9 +254,16 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def handle_selector_and_value_with_comparison(selector_name, op, value, ast, {query, opts}) do
-    new_value = Keyword.get(opts, :transformer, &identity_transformer/2).(selector_name, value)
+    {new_selector_name, new_value} =
+      Keyword.get(opts, :transformer, &identity_transformer/2).(selector_name, value)
 
-    do_handle_selector_and_value_with_comparison(selector_name, op, new_value, ast, {query, opts})
+    do_handle_selector_and_value_with_comparison(
+      new_selector_name,
+      op,
+      new_value,
+      ast,
+      {query, opts}
+    )
   end
 
   defp do_handle_selector_and_value_with_comparison(
