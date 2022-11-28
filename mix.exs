@@ -52,7 +52,7 @@ defmodule FIQLEx.MixProject do
       {:ecto, ">= 3.4.2"},
       {:timex, "~> 3.5"},
       {:ecto_sql, ">= 3.4.2"},
-      {:credo, "~> 1.6"},
+      {:credo, "~> 1.6", only: [:dev, :test]},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
