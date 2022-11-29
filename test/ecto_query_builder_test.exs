@@ -16,7 +16,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'John'",
+        where: u0.firstname == ^"John",
         order_by: [],
         select: [:firstname]
       )
@@ -33,7 +33,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'さよなら'",
+        where: u0.firstname == ^"さよなら",
         order_by: [],
         select: [:firstname]
       )
@@ -48,8 +48,7 @@ defmodule EctoQueryBuilderTest do
         select: :all
       )
 
-    expected =
-      from(u0 in FIQLEx.Test.Support.User, where: u0.firstname == ^"'John'", order_by: [])
+    expected = from(u0 in FIQLEx.Test.Support.User, where: u0.firstname == ^"John", order_by: [])
 
     assert inspect(expected) == inspect(result)
   end
@@ -63,7 +62,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'John'",
+        where: u0.firstname == ^"John",
         order_by: [],
         select: [:firstname, :username]
       )
@@ -80,7 +79,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'John'",
+        where: u0.firstname == ^"John",
         order_by: [],
         select: [:firstname, :username]
       )
@@ -99,7 +98,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.sessionexpire > ^"25" or u0.sessionexpire < ^"18",
+        where: u0.sessionexpire > ^25 or u0.sessionexpire < ^18,
         order_by: [],
         select: [:sessionexpire]
       )
@@ -118,7 +117,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.sessionexpire in ^["13", "18"],
+        where: u0.sessionexpire in ^[13, 18],
         order_by: [],
         select: [:sessionexpire]
       )
@@ -137,7 +136,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.sessionexpire >= ^"25" or u0.sessionexpire <= ^"18",
+        where: u0.sessionexpire >= ^25 or u0.sessionexpire <= ^18,
         order_by: [],
         select: [:sessionexpire]
       )
@@ -197,8 +196,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.inserted_at > fragment("?::date", ^"'2022-10-02T18:23:03Z'") and
-            u0.inserted_at < fragment("?::date", ^"'2022-10-31T18:23:03Z'"),
+          u0.inserted_at > fragment("?::date", ^"2022-10-02T18:23:03Z") and
+            u0.inserted_at < fragment("?::date", ^"2022-10-31T18:23:03Z"),
         order_by: [],
         select: [:inserted_at]
       )
@@ -218,8 +217,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.inserted_at >= fragment("?::date", ^"'2022-10-02T18:23:03Z'") and
-            u0.inserted_at <= fragment("?::date", ^"'2022-10-31T18:23:03Z'"),
+          u0.inserted_at >= fragment("?::date", ^"2022-10-02T18:23:03Z") and
+            u0.inserted_at <= fragment("?::date", ^"2022-10-31T18:23:03Z"),
         order_by: [],
         select: [:inserted_at]
       )
@@ -287,7 +286,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname not in ^["1", "2", "'Hello'"],
+        where: u0.firstname not in ^[1, 2, "Hello"],
         order_by: [],
         select: [:firstname]
       )
@@ -304,7 +303,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname != ^"'Hello ''World'",
+        where: u0.firstname != ^"Hello 'World",
         order_by: [],
         select: [:firstname]
       )
@@ -321,7 +320,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: not like(u0.firstname, ^"'%Hello'"),
+        where: not like(u0.firstname, ^"%Hello"),
         order_by: [],
         select: [:firstname]
       )
@@ -338,7 +337,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: like(u0.firstname, ^"'Hello%'"),
+        where: like(u0.firstname, ^"Hello%"),
         order_by: [],
         select: [:firstname]
       )
@@ -358,8 +357,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.firstname == ^"'Hello'" and
-            (u0.sessionexpire >= ^"10" and u0.username == ^"'Malcom'"),
+          u0.firstname == ^"Hello" and
+            (u0.sessionexpire >= ^10 and u0.username == ^"Malcom"),
         order_by: [],
         select: [:firstname, :sessionexpire, :username]
       )
@@ -378,8 +377,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where:
-          u0.firstname == ^"'Hello'" or (u0.sessionexpire >= ^"10" or u0.username == ^"'Malcom'"),
+        where: u0.firstname == ^"Hello" or (u0.sessionexpire >= ^10 or u0.username == ^"Malcom"),
         order_by: [],
         select: [:firstname, :sessionexpire, :username]
       )
@@ -399,8 +397,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.firstname == ^"'Hello'" or
-            (u0.sessionexpire >= ^"10" or (u0.username == ^"'Malcom'" or not is_nil(u0.lastname))),
+          u0.firstname == ^"Hello" or
+            (u0.sessionexpire >= ^10 or (u0.username == ^"Malcom" or not is_nil(u0.lastname))),
         order_by: [],
         select: [:firstname, :sessionexpire, :username, :lastname]
       )
@@ -420,8 +418,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          (u0.firstname == ^"'Hello'" and
-             (u0.sessionexpire >= ^"10" and u0.username == ^"'Malcom'")) or
+          (u0.firstname == ^"Hello" and
+             (u0.sessionexpire >= ^10 and u0.username == ^"Malcom")) or
             not is_nil(u0.lastname),
         order_by: [],
         select: [:firstname, :sessionexpire, :username, :lastname]
@@ -461,7 +459,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'John'" or u0.username == ^"'user'",
+        where: u0.firstname == ^"John" or u0.username == ^"user",
         order_by: []
       )
 
@@ -477,8 +475,7 @@ defmodule EctoQueryBuilderTest do
         only: ["firstname"]
       )
 
-    expected =
-      from(u0 in FIQLEx.Test.Support.User, where: u0.firstname == ^"'John'", order_by: [])
+    expected = from(u0 in FIQLEx.Test.Support.User, where: u0.firstname == ^"John", order_by: [])
 
     assert inspect(expected) == inspect(result)
   end
@@ -512,8 +509,7 @@ defmodule EctoQueryBuilderTest do
         except: ["bad"]
       )
 
-    expected =
-      from(u0 in FIQLEx.Test.Support.User, where: u0.firstname == ^"'John'", order_by: [])
+    expected = from(u0 in FIQLEx.Test.Support.User, where: u0.firstname == ^"John", order_by: [])
 
     assert inspect(expected) == inspect(result)
   end
@@ -530,7 +526,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: fragment("lower(?)", u0.firstname) == fragment("lower(?)", ^"'John'"),
+        where: fragment("lower(?)", u0.firstname) == fragment("lower(?)", ^"John"),
         order_by: [],
         select: [:firstname]
       )
@@ -550,7 +546,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: fragment("lower(?)", u0.firstname) != fragment("lower(?)", ^"'John'"),
+        where: fragment("lower(?)", u0.firstname) != fragment("lower(?)", ^"John"),
         order_by: [],
         select: [:firstname]
       )
@@ -570,7 +566,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: not ilike(u0.firstname, ^"'%Hello'"),
+        where: not ilike(u0.firstname, ^"%Hello"),
         order_by: [],
         select: [:firstname]
       )
@@ -590,7 +586,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: ilike(u0.firstname, ^"'%Hello'"),
+        where: ilike(u0.firstname, ^"%Hello"),
         order_by: [],
         select: [:firstname]
       )
@@ -608,7 +604,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'John'",
+        where: u0.firstname == ^"John",
         order_by: [asc: u0.firstname],
         select: [:firstname]
       )
@@ -626,7 +622,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.firstname == ^"'John'",
+        where: u0.firstname == ^"John",
         order_by: [],
         limit: ^103,
         select: [:firstname]
@@ -646,7 +642,7 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        where: u0.lastname == ^"'AnotherJohn'",
+        where: u0.lastname == ^"AnotherJohn",
         order_by: []
       )
 

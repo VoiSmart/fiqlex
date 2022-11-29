@@ -73,10 +73,10 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     selector_name = string_to_atom(selector_name)
 
     if is_case_insensitive(opts) do
-      value = String.replace(escape_string(value), "*", "%", global: true)
+      value = String.replace(value, "*", "%", global: true)
       dynamic([q], ilike(field(q, ^selector_name), ^value))
     else
-      value = String.replace(escape_string(value), "*", "%", global: true)
+      value = String.replace(value, "*", "%", global: true)
       dynamic([q], like(field(q, ^selector_name), ^value))
     end
   end
@@ -95,10 +95,10 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     selector_name = string_to_atom(selector_name)
 
     if is_case_insensitive(opts) do
-      value = String.replace(escape_string(value), "*", "%", global: true)
+      value = String.replace(value, "*", "%", global: true)
       dynamic([q], not ilike(field(q, ^selector_name), ^value))
     else
-      value = String.replace(escape_string(value), "*", "%", global: true)
+      value = String.replace(value, "*", "%", global: true)
       dynamic([q], not like(field(q, ^selector_name), ^value))
     end
   end
@@ -157,7 +157,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       if String.starts_with?(value, "*") || String.ends_with?(value, "*") do
         {:ok, {binary_like(selector_name, value, opts), opts}}
       else
-        {:ok, {binary_equal(selector_name, escape_string(value), opts), opts}}
+        {:ok, {binary_equal(selector_name, value, opts), opts}}
       end
     else
       {:error, :selector_not_allowed}
@@ -168,9 +168,8 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        when is_list(value) do
     if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
-      values = value |> escape_list()
 
-      {:ok, {dynamic([q], field(q, ^selector_name) in ^values), opts}}
+      {:ok, {dynamic([q], field(q, ^selector_name) in ^value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -208,7 +207,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       if String.starts_with?(value, "*") || String.ends_with?(value, "*") do
         {:ok, {binary_not_like(selector_name, value, opts), opts}}
       else
-        {:ok, {binary_not_equal(selector_name, escape_string(value), opts), opts}}
+        {:ok, {binary_not_equal(selector_name, value, opts), opts}}
       end
     else
       {:error, :selector_not_allowed}
@@ -219,8 +218,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        when is_list(value) do
     if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
-      values = value |> escape_list()
-      {:ok, {dynamic([q], field(q, ^selector_name) not in ^values), opts}}
+      {:ok, {dynamic([q], field(q, ^selector_name) not in ^value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -276,7 +274,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) >= ^to_string(value)), opts}}
+      {:ok, {dynamic([q], field(q, ^selector_name) >= ^value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -292,7 +290,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) > ^to_string(value)), opts}}
+      {:ok, {dynamic([q], field(q, ^selector_name) > ^value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -308,7 +306,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) <= ^to_string(value)), opts}}
+      {:ok, {dynamic([q], field(q, ^selector_name) <= ^value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -324,7 +322,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
       selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) < ^to_string(value)), opts}}
+      {:ok, {dynamic([q], field(q, ^selector_name) < ^value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -346,7 +344,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
           {:ok,
            {dynamic(
               [q],
-              field(q, ^selector_name) >= fragment("?::date", ^to_string(escape_string(date)))
+              field(q, ^selector_name) >= fragment("?::date", ^to_string(date))
             ), opts}}
 
         {:error, err} ->
@@ -373,7 +371,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
           {:ok,
            {dynamic(
               [q],
-              field(q, ^selector_name) > fragment("?::date", ^to_string(escape_string(date)))
+              field(q, ^selector_name) > fragment("?::date", ^to_string(date))
             ), opts}}
 
         {:error, err} ->
@@ -400,7 +398,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
           {:ok,
            {dynamic(
               [q],
-              field(q, ^selector_name) <= fragment("?::date", ^to_string(escape_string(date)))
+              field(q, ^selector_name) <= fragment("?::date", ^to_string(date))
             ), opts}}
 
         {:error, err} ->
@@ -427,7 +425,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
           {:ok,
            {dynamic(
               [q],
-              field(q, ^selector_name) < fragment("?::date", ^to_string(escape_string(date)))
+              field(q, ^selector_name) < fragment("?::date", ^to_string(date))
             ), opts}}
 
         {:error, err} ->
@@ -446,13 +444,6 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   defp do_handle_selector_and_value_with_comparison(_selector_name, _op, _value, _ast, _state) do
     {:error, :invalid_value}
   end
-
-  defp escape_string(str) when is_binary(str),
-    do: "'" <> String.replace(str, "'", "''", global: true) <> "'"
-
-  defp escape_string(str), do: to_string(str)
-
-  defp escape_list(list), do: Enum.map(list, &escape_string/1)
 
   defp string_to_atom(value), do: String.to_existing_atom(value)
 
