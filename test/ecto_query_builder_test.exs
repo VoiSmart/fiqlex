@@ -612,6 +612,40 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "fiql filter with order by sorting only with valid selector" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors,
+        order_by: [{:asc, :firstname}, {:asc, :invalid_field}]
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.firstname == ^"John",
+        order_by: [asc: u0.firstname],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with order by sorting only with atom and binary selectors" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        order_by: [{:asc, :firstname}, {:desc, "lastname"}]
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.firstname == ^"John",
+        order_by: [asc: u0.firstname, desc: u0.lastname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "single fiql filter with limit" do
     {:ok, result} =
       FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,

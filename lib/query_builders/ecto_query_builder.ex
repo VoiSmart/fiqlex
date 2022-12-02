@@ -8,7 +8,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   * `select`: `SELECT` statement to build (_see below_).
   * `only`: A list of atom/binary with the only fields to accept in the query (if `only` and `except` are both provided, `only` is used)
   * `except`: A list of atom/binary with the fields to reject in the query (if `only` and `except` are both provided, `only` is used)
-  * `order_by`: A tuple list {direction, field} for order by to be added to the query. Direction is :asc or :desc, field is an atom
+  * `order_by`: A tuple list {direction, field} for order by to be added to the query. Direction is :asc or :desc, field is an atom/binary
   * `limit`: A limit for the query
   * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
   * `transformer`: Function that takes a selector and its value as parameter and must return a tuple {new_selector, new_value} with the transformed values
@@ -52,7 +52,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     final_query =
       schema
       |> add_select(select)
-      |> order_by(^add_order_by(order_by))
+      |> order_by(^add_order_by(order_by, opts))
       |> where(^query)
       |> add_limit(limit)
 
@@ -459,16 +459,27 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     limit(schema, ^limit)
   end
 
-  defp add_order_by(order_by) do
+  defp add_order_by(order_by, opts) do
     order_by
-    |> Enum.map(fn {direction, field} -> {direction, dynamic([q], field(q, ^field))} end)
+    |> Enum.flat_map(fn {direction, field} ->
+      case order_by_field_allowed?(field, opts) do
+        true -> [{direction, dynamic([q], field(q, ^convert_selector(field)))}]
+        false -> []
+      end
+    end)
     |> Keyword.new()
   end
 
-  defp is_selector_allowed?(selector, opts) do
-    schema_fields = Keyword.get(opts, :schema_fields)
+  defp order_by_field_allowed?(field, opts) when is_atom(field) do
+    order_by_field_allowed?(Atom.to_string(field), opts)
+  end
 
-    case selector in schema_fields do
+  defp order_by_field_allowed?(field, opts) do
+    field in get_schema_fields(opts)
+  end
+
+  defp is_selector_allowed?(selector, opts) do
+    case selector in get_schema_fields(opts) do
       true ->
         selector = convert_selector(selector)
         get_select_only_option(selector, opts)
@@ -555,4 +566,6 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   defp parse_duration("-P" <> rest), do: {:ok, "P" <> rest, -1}
 
   defp parse_duration(value), do: {:error, value}
+
+  defp get_schema_fields(opts), do: Keyword.get(opts, :schema_fields, [])
 end
