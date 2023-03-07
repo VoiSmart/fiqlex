@@ -49,6 +49,9 @@ query builders like `FIQLEx.QueryBuilders.SQLQueryBuilder`:
 
 Here, `sql_query` is `SELECT * FROM author WHERE (author.age >= 25 AND author.name LIKE '%Doe')`.
 
+N.B. to use SQLQueryBuilder, the optional dependency to `ecto_sql` must be added
+to your project's dependencies.
+
 You can use your own query builder by providing your own module that uses `FIQLEx.QueryBuilder`
 as second argument of `build_query/3`.
 
