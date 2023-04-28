@@ -5,7 +5,409 @@ defmodule EctoQueryBuilderTest do
   import Ecto.Query
 
   alias FIQLEx.QueryBuilders.EctoQueryBuilder
+  alias FIQLEx.Test.Support.Group, as: GroupSchema
   alias FIQLEx.Test.Support.User, as: UserSchema
+
+  test "fiql filter with invalid associations" do
+    res =
+      FIQLEx.build_query(FIQLEx.parse!("shops.name==develop"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    assert res == {:error, :selector_not_allowed}
+  end
+
+  test "fiql filter with invalid association's field" do
+    res =
+      FIQLEx.build_query(FIQLEx.parse!("groups.invalidfield==develop"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    assert res == {:error, :selector_not_allowed}
+  end
+
+  test "fiql filter with associations and binary equal filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name==develop;firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).name == ^"develop" and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with multiple associations and binary equal filter" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("groups.name==develop;domain.organization==acme;firstname==John"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        left_join: d2 in assoc(u0, :domain),
+        as: :domain,
+        where:
+          as(:groups).name == ^"develop" and
+            (as(:domain).organization == ^"acme" and u0.firstname == ^"John"),
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and binary equal filter and case insensitive" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name==develop;firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        case_sensitive: false,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where:
+          fragment("lower(?)", as(:groups).name) == fragment("lower(?)", ^"develop") and
+            fragment("lower(?)", u0.firstname) == fragment("lower(?)", ^"John"),
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and binary_like filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name==*develop;firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: like(as(:groups).name, ^"%develop") and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and binary like filter and case insensitive" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name==*develop"), EctoQueryBuilder,
+        schema: UserSchema,
+        case_sensitive: false,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: ilike(as(:groups).name, ^"%develop"),
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and not equal filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name!=develop"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).name != ^"develop",
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and not equal filter and case insensitive" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name!=develop"), EctoQueryBuilder,
+        schema: UserSchema,
+        case_sensitive: false,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: fragment("lower(?)", as(:groups).name) != fragment("lower(?)", ^"develop"),
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and binary not like filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name!=*develop;firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: not like(as(:groups).name, ^"%develop") and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and binary not like filter and case_insensitive" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name!=*develop"), EctoQueryBuilder,
+        schema: UserSchema,
+        case_sensitive: false,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: not ilike(as(:groups).name, ^"%develop"),
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and list filter" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("groups.name==(develop, research);firstname==John"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).name in ^["develop", "research"] and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and not in list filter" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("groups.name!=(develop, research);firstname==John"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).name not in ^["develop", "research"] and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and true boolean filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.enabled==true"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).enabled == ^"true",
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and not true boolean filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.enabled!=true"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).enabled != ^"true",
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and false boolean filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.enabled==false"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).enabled == ^"false",
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and not false boolean filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.enabled!=false"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).enabled != ^"false",
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations comparing dates with gt and lt" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!(
+          "groups.inserted_at=gt=2022-10-02T18:23:03Z;groups.inserted_at=lt=2022-10-31T18:23:03Z"
+        ),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where:
+          as(:groups).inserted_at > fragment("?::date", ^"2022-10-02T18:23:03Z") and
+            as(:groups).inserted_at < fragment("?::date", ^"2022-10-31T18:23:03Z"),
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter associations comparing dates with ge and le" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!(
+          "groups.inserted_at=ge=2022-10-02T18:23:03Z;groups.inserted_at=le=2022-10-31T18:23:03Z"
+        ),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where:
+          as(:groups).inserted_at >= fragment("?::date", ^"2022-10-02T18:23:03Z") and
+            as(:groups).inserted_at <= fragment("?::date", ^"2022-10-31T18:23:03Z"),
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter associations comparing integer numbers with ge and le operator" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("groups.sessionexpire=ge=25,groups.sessionexpire=le=18"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).sessionexpire >= ^25 or as(:groups).sessionexpire <= ^18,
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter associations comparing integer numbers with gt and lt operator" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("groups.sessionexpire=gt=25,groups.sessionexpire=lt=18"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        left_join: g1 in assoc(u0, :groups),
+        as: :groups,
+        where: as(:groups).sessionexpire > ^25 or as(:groups).sessionexpire < ^18,
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
 
   test "single fiql filter with select field from selectors" do
     {:ok, result} =
@@ -104,6 +506,30 @@ defmodule EctoQueryBuilderTest do
       )
 
     assert inspect(result) == inspect(expected)
+  end
+
+  test "fiql filter comparing binary with gt operator" do
+    res =
+      FIQLEx.build_query(
+        FIQLEx.parse!("sessionexpire=gt=abc"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    assert res == {:error, :invalid_comparison_value}
+  end
+
+  test "fiql filter comparing binary with lt operator" do
+    res =
+      FIQLEx.build_query(
+        FIQLEx.parse!("sessionexpire=lt=abc"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    assert res == {:error, :invalid_comparison_value}
   end
 
   test "fiql filter with a list of value" do
@@ -228,6 +654,40 @@ defmodule EctoQueryBuilderTest do
 
   test "fiql filter comparing true boolean field" do
     {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("enabled==true"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.enabled == ^"true",
+        order_by: [],
+        select: [:enabled]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter comparing false boolean field" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("enabled==false"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: u0.enabled == ^"false",
+        order_by: [],
+        select: [:enabled]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter comparing not true boolean field" do
+    {:ok, result} =
       FIQLEx.build_query(FIQLEx.parse!("enabled!=true"), EctoQueryBuilder,
         schema: UserSchema,
         select: :from_selectors
@@ -243,7 +703,7 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
-  test "fiql filter comparing false boolean field" do
+  test "fiql filter comparing not false boolean field" do
     {:ok, result} =
       FIQLEx.build_query(FIQLEx.parse!("enabled!=false"), EctoQueryBuilder,
         schema: UserSchema,
@@ -665,11 +1125,37 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "give inital query" do
+    initial_query =
+      from(UserSchema,
+        join: g in GroupSchema,
+        on: true
+      )
+
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors,
+        initial_query: initial_query
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        join: g1 in FIQLEx.Test.Support.Group,
+        on: true,
+        where: u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "fiql filter using a trasnformer function" do
     transformer_fn = fn _selector, value -> {"lastname", "Another#{value}"} end
 
     {:ok, result} =
-      FIQLEx.build_query(FIQLEx.parse!("anotherschema.lastname==John"), EctoQueryBuilder,
+      FIQLEx.build_query(FIQLEx.parse!("lastname==John"), EctoQueryBuilder,
         schema: UserSchema,
         transformer: transformer_fn
       )

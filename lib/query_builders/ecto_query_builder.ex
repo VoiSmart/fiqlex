@@ -5,6 +5,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   Possible options for this query builder are:
 
   * `schema`: The schema name to use in the `FROM` statement
+  * `initial_query`: An optional Ecto query used as a starting point for building the query. If not given `schema` is used.
   * `select`: `SELECT` statement to build (_see below_).
   * `only`: A list of atom/binary with the only fields to accept in the query (if `only` and `except` are both provided, `only` is used)
   * `except`: A list of atom/binary with the fields to reject in the query (if `only` and `except` are both provided, `only` is used)
@@ -31,18 +32,29 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def init(_ast, opts) do
-    schema_fields =
+    {schema_fields, schema_associations} =
       case Keyword.get(opts, :schema) do
-        nil -> []
-        schema -> Enum.map(schema.__schema__(:fields), fn field -> Atom.to_string(field) end)
+        nil ->
+          {[], []}
+
+        schema ->
+          {Enum.map(schema.__schema__(:fields), fn field -> Atom.to_string(field) end),
+           Enum.map(schema.__schema__(:associations), fn association ->
+             Atom.to_string(association)
+           end)}
       end
 
-    {"", Keyword.put(opts, :schema_fields, schema_fields)}
+    new_opts =
+      opts
+      |> Keyword.put(:schema_fields, schema_fields)
+      |> Keyword.put(:schema_associations, schema_associations)
+
+    {"", new_opts}
   end
 
   @impl true
   def build(ast, {query, opts}) do
-    schema = Keyword.get(opts, :schema)
+    schema = inital_query(opts)
     order_by = Keyword.get(opts, :order_by, [])
 
     select = get_select_option(ast, opts)
@@ -53,57 +65,12 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       schema
       |> add_select(select)
       |> order_by(^add_order_by(order_by, opts))
+      |> maybe_add_join(ast)
       |> where(^query)
       |> add_limit(limit)
 
     {:ok, final_query}
   end
-
-  def binary_equal(selector_name, value, opts) do
-    selector_name = string_to_atom(selector_name)
-
-    if is_case_insensitive(opts) do
-      dynamic([q], fragment("lower(?)", field(q, ^selector_name)) == fragment("lower(?)", ^value))
-    else
-      dynamic([q], field(q, ^selector_name) == ^value)
-    end
-  end
-
-  def binary_like(selector_name, value, opts) do
-    selector_name = string_to_atom(selector_name)
-
-    if is_case_insensitive(opts) do
-      value = String.replace(value, "*", "%", global: true)
-      dynamic([q], ilike(field(q, ^selector_name), ^value))
-    else
-      value = String.replace(value, "*", "%", global: true)
-      dynamic([q], like(field(q, ^selector_name), ^value))
-    end
-  end
-
-  def binary_not_equal(selector_name, value, opts) do
-    selector_name = string_to_atom(selector_name)
-
-    if is_case_insensitive(opts) do
-      dynamic([q], fragment("lower(?)", field(q, ^selector_name)) != fragment("lower(?)", ^value))
-    else
-      dynamic([q], field(q, ^selector_name) != ^value)
-    end
-  end
-
-  def binary_not_like(selector_name, value, opts) do
-    selector_name = string_to_atom(selector_name)
-
-    if is_case_insensitive(opts) do
-      value = String.replace(value, "*", "%", global: true)
-      dynamic([q], not ilike(field(q, ^selector_name), ^value))
-    else
-      value = String.replace(value, "*", "%", global: true)
-      dynamic([q], not like(field(q, ^selector_name), ^value))
-    end
-  end
-
-  def identity_transformer(selector, value), do: {selector, value}
 
   @impl true
   def handle_or_expression(exp1, exp2, ast, {query, opts}) do
@@ -151,6 +118,194 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     do_handle_selector_and_value(new_selector_name, op, new_value, ast, {query, opts})
   end
 
+  @impl true
+  def handle_selector_and_value_with_comparison(selector_name, op, value, ast, {query, opts}) do
+    {new_selector_name, new_value} =
+      Keyword.get(opts, :transformer, &identity_transformer/2).(selector_name, value)
+
+    do_handle_selector_and_value_with_comparison(
+      new_selector_name,
+      op,
+      new_value,
+      ast,
+      {query, opts}
+    )
+  end
+
+  defp binary_equal(selector_name, value, opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          dynamic(
+            [],
+            fragment("lower(?)", field(as(^association), ^assoc_selector)) ==
+              fragment("lower(?)", ^value)
+          )
+        else
+          dynamic([], field(as(^association), ^assoc_selector) == ^value)
+        end
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          dynamic(
+            [q],
+            fragment("lower(?)", field(q, ^selector_name)) == fragment("lower(?)", ^value)
+          )
+        else
+          dynamic([q], field(q, ^selector_name) == ^value)
+        end
+    end
+  end
+
+  defp binary_like(selector_name, value, opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          value = String.replace(value, "*", "%", global: true)
+
+          dynamic(
+            [],
+            ilike(field(as(^association), ^assoc_selector), ^value)
+          )
+        else
+          value = String.replace(value, "*", "%", global: true)
+
+          dynamic(
+            [],
+            like(field(as(^association), ^assoc_selector), ^value)
+          )
+        end
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          value = String.replace(value, "*", "%", global: true)
+          dynamic([q], ilike(field(q, ^selector_name), ^value))
+        else
+          value = String.replace(value, "*", "%", global: true)
+          dynamic([q], like(field(q, ^selector_name), ^value))
+        end
+    end
+  end
+
+  defp binary_not_equal(selector_name, value, opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          dynamic(
+            [],
+            fragment("lower(?)", field(as(^association), ^assoc_selector)) !=
+              fragment("lower(?)", ^value)
+          )
+        else
+          dynamic([], field(as(^association), ^assoc_selector) != ^value)
+        end
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          dynamic(
+            [q],
+            fragment("lower(?)", field(q, ^selector_name)) != fragment("lower(?)", ^value)
+          )
+        else
+          dynamic([q], field(q, ^selector_name) != ^value)
+        end
+    end
+  end
+
+  defp binary_not_like(selector_name, value, opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          value = String.replace(value, "*", "%", global: true)
+          dynamic([], not ilike(field(as(^association), ^assoc_selector), ^value))
+        else
+          value = String.replace(value, "*", "%", global: true)
+          dynamic([], not like(field(as(^association), ^assoc_selector), ^value))
+        end
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        if is_case_insensitive(opts) do
+          value = String.replace(value, "*", "%", global: true)
+          dynamic([q], not ilike(field(q, ^selector_name), ^value))
+        else
+          value = String.replace(value, "*", "%", global: true)
+          dynamic([q], not like(field(q, ^selector_name), ^value))
+        end
+    end
+  end
+
+  defp list_equal(selector_name, value, _opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic([], field(as(^association), ^assoc_selector) in ^value)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) in ^value)
+    end
+  end
+
+  defp list_not_equal(selector_name, value, _opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic([], field(as(^association), ^assoc_selector) not in ^value)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) not in ^value)
+    end
+  end
+
+  defp boolean_equal(selector_name, value, _opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+        dynamic([], field(as(^association), ^assoc_selector) == ^to_string(value))
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) == ^to_string(value))
+    end
+  end
+
+  defp boolean_not_equal(selector_name, value, _opts) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+        dynamic([], field(as(^association), ^assoc_selector) != ^to_string(value))
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) != ^to_string(value))
+    end
+  end
+
+  defp identity_transformer(selector, value), do: {selector, value}
+
   defp do_handle_selector_and_value(selector_name, :equal, value, _ast, {_query, opts})
        when is_binary(value) do
     if is_selector_allowed?(selector_name, opts) do
@@ -167,9 +322,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   defp do_handle_selector_and_value(selector_name, :equal, value, _ast, {_query, opts})
        when is_list(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-
-      {:ok, {dynamic([q], field(q, ^selector_name) in ^value), opts}}
+      {:ok, {list_equal(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -177,8 +330,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :equal, true, _ast, {_query, opts}) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) == ^to_string(true))}}
+      {:ok, {boolean_equal(selector_name, true, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -186,8 +338,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :equal, false, _ast, {_query, opts}) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) == ^to_string(false)), opts}}
+      {:ok, {boolean_equal(selector_name, false, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -217,8 +368,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   defp do_handle_selector_and_value(selector_name, :not_equal, value, _ast, {_query, opts})
        when is_list(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) not in ^value), opts}}
+      {:ok, {list_not_equal(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -226,8 +376,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :not_equal, true, _ast, {_query, opts}) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) != ^to_string(true)), opts}}
+      {:ok, {boolean_not_equal(selector_name, true, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -235,8 +384,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp do_handle_selector_and_value(selector_name, :not_equal, false, _ast, {_query, opts}) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) != ^to_string(false)), opts}}
+      {:ok, {boolean_not_equal(selector_name, false, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -250,18 +398,128 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  @impl true
-  def handle_selector_and_value_with_comparison(selector_name, op, value, ast, {query, opts}) do
-    {new_selector_name, new_value} =
-      Keyword.get(opts, :transformer, &identity_transformer/2).(selector_name, value)
+  def ge_filter(selector_name, value) when is_number(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-    do_handle_selector_and_value_with_comparison(
-      new_selector_name,
-      op,
-      new_value,
-      ast,
-      {query, opts}
-    )
+        dynamic([], field(as(^association), ^assoc_selector) >= ^value)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) >= ^value)
+    end
+  end
+
+  def ge_filter(selector_name, value) when is_binary(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic(
+          [],
+          field(as(^association), ^assoc_selector) >= fragment("?::date", ^to_string(value))
+        )
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) >= fragment("?::date", ^to_string(value)))
+    end
+  end
+
+  def gt_filter(selector_name, value) when is_number(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic([], field(as(^association), ^assoc_selector) > ^value)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) > ^value)
+    end
+  end
+
+  def gt_filter(selector_name, value) when is_binary(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic(
+          [],
+          field(as(^association), ^assoc_selector) > fragment("?::date", ^to_string(value))
+        )
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) > fragment("?::date", ^to_string(value)))
+    end
+  end
+
+  def le_filter(selector_name, value) when is_number(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic([], field(as(^association), ^assoc_selector) <= ^value)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) <= ^value)
+    end
+  end
+
+  def le_filter(selector_name, value) when is_binary(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic(
+          [],
+          field(as(^association), ^assoc_selector) <= fragment("?::date", ^to_string(value))
+        )
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) <= fragment("?::date", ^to_string(value)))
+    end
+  end
+
+  def lt_filter(selector_name, value) when is_number(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic([], field(as(^association), ^assoc_selector) < ^value)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) < ^value)
+    end
+  end
+
+  def lt_filter(selector_name, value) when is_binary(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        dynamic(
+          [],
+          field(as(^association), ^assoc_selector) < fragment("?::date", ^to_string(value))
+        )
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], field(q, ^selector_name) < fragment("?::date", ^to_string(value)))
+    end
   end
 
   defp do_handle_selector_and_value_with_comparison(
@@ -273,8 +531,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) >= ^value), opts}}
+      {:ok, {ge_filter(selector_name, value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -289,8 +546,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) > ^value), opts}}
+      {:ok, {gt_filter(selector_name, value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -305,8 +561,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) <= ^value), opts}}
+      {:ok, {le_filter(selector_name, value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -321,8 +576,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-      {:ok, {dynamic([q], field(q, ^selector_name) < ^value), opts}}
+      {:ok, {lt_filter(selector_name, value), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -337,15 +591,9 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_binary(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok,
-           {dynamic(
-              [q],
-              field(q, ^selector_name) >= fragment("?::date", ^to_string(date))
-            ), opts}}
+          {:ok, {ge_filter(selector_name, date), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -364,15 +612,9 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_binary(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok,
-           {dynamic(
-              [q],
-              field(q, ^selector_name) > fragment("?::date", ^to_string(date))
-            ), opts}}
+          {:ok, {gt_filter(selector_name, date), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -391,15 +633,9 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_binary(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok,
-           {dynamic(
-              [q],
-              field(q, ^selector_name) <= fragment("?::date", ^to_string(date))
-            ), opts}}
+          {:ok, {le_filter(selector_name, date), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -418,15 +654,9 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_binary(value) do
     if is_selector_allowed?(selector_name, opts) do
-      selector_name = string_to_atom(selector_name)
-
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok,
-           {dynamic(
-              [q],
-              field(q, ^selector_name) < fragment("?::date", ^to_string(date))
-            ), opts}}
+          {:ok, {lt_filter(selector_name, date), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -459,6 +689,22 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     limit(schema, ^limit)
   end
 
+  defp maybe_add_join(query, ast) do
+    ast
+    |> get_selectors()
+    |> Enum.reduce(query, fn s, query ->
+      case maybe_associations_selector?(s) do
+        true ->
+          {association, _} = get_association_selector(s)
+          association = String.to_existing_atom(association)
+          query |> join(:left, [p], q in assoc(p, ^association), as: ^association)
+
+        false ->
+          query
+      end
+    end)
+  end
+
   defp add_order_by(order_by, opts) do
     order_by
     |> Enum.flat_map(fn {direction, field} ->
@@ -479,6 +725,17 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   end
 
   defp is_selector_allowed?(selector, opts) do
+    case maybe_associations_selector?(selector) do
+      true -> is_association_selector_allowed(selector, opts)
+      false -> is_single_selector_allowed(selector, opts)
+    end
+  end
+
+  defp maybe_associations_selector?(selector) do
+    String.contains?(selector, ".")
+  end
+
+  defp is_single_selector_allowed(selector, opts) do
     case selector in get_schema_fields(opts) do
       true ->
         selector = convert_selector(selector)
@@ -487,6 +744,25 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       false ->
         false
     end
+  end
+
+  defp is_association_selector_allowed(selector, opts) do
+    {association, assoc_selector} = get_association_selector(selector)
+
+    case association in get_schema_associations(opts) do
+      true ->
+        validate_association_field(assoc_selector)
+
+      false ->
+        false
+    end
+  end
+
+  defp validate_association_field(assoc_selector) do
+    _ = String.to_existing_atom(assoc_selector)
+    true
+  rescue
+    _ -> false
   end
 
   defp get_select_only_option(selector, opts) do
@@ -521,13 +797,22 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         []
 
       :from_selectors ->
-        ast
-        |> get_selectors()
-        |> Enum.map(fn s -> string_to_atom(s) end)
+        get_select_from_selectors(ast)
 
       selectors ->
         Enum.map(selectors, fn s -> convert_selector(s) end)
     end
+  end
+
+  defp get_select_from_selectors(ast) do
+    ast
+    |> get_selectors()
+    |> Enum.reduce([], fn s, acc ->
+      case maybe_associations_selector?(s) do
+        true -> acc
+        false -> Enum.concat(acc, [string_to_atom(s)])
+      end
+    end)
   end
 
   defp maybe_date_time_value(value) do
@@ -568,4 +853,26 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   defp parse_duration(value), do: {:error, value}
 
   defp get_schema_fields(opts), do: Keyword.get(opts, :schema_fields, [])
+
+  defp get_schema_associations(opts), do: Keyword.get(opts, :schema_associations, [])
+
+  defp get_association_selector(selector) do
+    [association, selector] = String.split(selector, ".")
+    {association, selector}
+  end
+
+  defp get_association_selector_to_atom(selector) do
+    {association, selector} = get_association_selector(selector)
+    {String.to_existing_atom(association), String.to_existing_atom(selector)}
+  end
+
+  defp inital_query(opts) do
+    schema = Keyword.get(opts, :schema)
+    initial_query = Keyword.get(opts, :initial_query)
+
+    case initial_query do
+      nil -> schema
+      _ -> initial_query
+    end
+  end
 end
