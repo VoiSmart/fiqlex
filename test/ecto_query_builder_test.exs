@@ -37,9 +37,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).name == ^"develop" and u0.firstname == ^"John",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).name == ^"develop",
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
         order_by: [],
         select: [:firstname]
       )
@@ -58,13 +64,24 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        left_join: d2 in assoc(u0, :domain),
-        as: :domain,
         where:
-          as(:groups).name == ^"develop" and
-            (as(:domain).organization == ^"acme" and u0.firstname == ^"John"),
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).name == ^"develop",
+              select: u0.id
+            )
+          ) and
+            (u0.id in subquery(
+               from(u0 in FIQLEx.Test.Support.User,
+                 join: g1 in assoc(u0, :domain),
+                 as: :domain,
+                 where: as(:domain).organization == ^"acme",
+                 select: u0.id
+               )
+             ) and
+               u0.firstname == ^"John"),
         order_by: [],
         select: [:firstname]
       )
@@ -82,10 +99,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
         where:
-          fragment("lower(?)", as(:groups).name) == fragment("lower(?)", ^"develop") and
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: fragment("lower(?)", as(:groups).name) == fragment("lower(?)", ^"develop"),
+              select: u0.id
+            )
+          ) and
             fragment("lower(?)", u0.firstname) == fragment("lower(?)", ^"John"),
         order_by: [],
         select: [:firstname]
@@ -103,9 +125,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: like(as(:groups).name, ^"%develop") and u0.firstname == ^"John",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: like(as(:groups).name, ^"%develop"),
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
         order_by: [],
         select: [:firstname]
       )
@@ -123,9 +151,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: ilike(as(:groups).name, ^"%develop"),
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: ilike(as(:groups).name, ^"%develop"),
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -141,9 +175,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).name != ^"develop",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).name != ^"develop",
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -160,9 +200,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: fragment("lower(?)", as(:groups).name) != fragment("lower(?)", ^"develop"),
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: fragment("lower(?)", as(:groups).name) != fragment("lower(?)", ^"develop"),
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -178,9 +224,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: not like(as(:groups).name, ^"%develop") and u0.firstname == ^"John",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: not like(as(:groups).name, ^"%develop"),
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
         order_by: [],
         select: [:firstname]
       )
@@ -198,9 +250,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: not ilike(as(:groups).name, ^"%develop"),
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: not ilike(as(:groups).name, ^"%develop"),
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -218,9 +276,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).name in ^["develop", "research"] and u0.firstname == ^"John",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).name in ^["develop", "research"],
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
         order_by: [],
         select: [:firstname]
       )
@@ -239,9 +303,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).name not in ^["develop", "research"] and u0.firstname == ^"John",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).name not in ^["develop", "research"],
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
         order_by: [],
         select: [:firstname]
       )
@@ -258,9 +328,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).enabled == ^"true",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).enabled == ^"true",
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -276,9 +352,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).enabled != ^"true",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).enabled != ^"true",
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -294,9 +376,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).enabled == ^"false",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).enabled == ^"false",
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -312,9 +400,15 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).enabled != ^"false",
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).enabled != ^"false",
+              select: u0.id
+            )
+          ),
         order_by: []
       )
 
@@ -334,11 +428,23 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
         where:
-          as(:groups).inserted_at > fragment("?::date", ^"2022-10-02T18:23:03Z") and
-            as(:groups).inserted_at < fragment("?::date", ^"2022-10-31T18:23:03Z"),
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).inserted_at > fragment("?::date", ^"2022-10-02T18:23:03Z"),
+              select: u0.id
+            )
+          ) and
+            u0.id in subquery(
+              from(u0 in FIQLEx.Test.Support.User,
+                join: g1 in assoc(u0, :groups),
+                as: :groups,
+                where: as(:groups).inserted_at < fragment("?::date", ^"2022-10-31T18:23:03Z"),
+                select: u0.id
+              )
+            ),
         order_by: []
       )
 
@@ -358,11 +464,23 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
         where:
-          as(:groups).inserted_at >= fragment("?::date", ^"2022-10-02T18:23:03Z") and
-            as(:groups).inserted_at <= fragment("?::date", ^"2022-10-31T18:23:03Z"),
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).inserted_at >= fragment("?::date", ^"2022-10-02T18:23:03Z"),
+              select: u0.id
+            )
+          ) and
+            u0.id in subquery(
+              from(u0 in FIQLEx.Test.Support.User,
+                join: g1 in assoc(u0, :groups),
+                as: :groups,
+                where: as(:groups).inserted_at <= fragment("?::date", ^"2022-10-31T18:23:03Z"),
+                select: u0.id
+              )
+            ),
         order_by: []
       )
 
@@ -380,9 +498,23 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).sessionexpire >= ^25 or as(:groups).sessionexpire <= ^18,
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).sessionexpire >= ^25,
+              select: u0.id
+            )
+          ) or
+            u0.id in subquery(
+              from(u0 in FIQLEx.Test.Support.User,
+                join: g1 in assoc(u0, :groups),
+                as: :groups,
+                where: as(:groups).sessionexpire <= ^18,
+                select: u0.id
+              )
+            ),
         order_by: []
       )
 
@@ -400,9 +532,23 @@ defmodule EctoQueryBuilderTest do
 
     expected =
       from(u0 in FIQLEx.Test.Support.User,
-        left_join: g1 in assoc(u0, :groups),
-        as: :groups,
-        where: as(:groups).sessionexpire > ^25 or as(:groups).sessionexpire < ^18,
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).sessionexpire > ^25,
+              select: u0.id
+            )
+          ) or
+            u0.id in subquery(
+              from(u0 in FIQLEx.Test.Support.User,
+                join: g1 in assoc(u0, :groups),
+                as: :groups,
+                where: as(:groups).sessionexpire < ^18,
+                select: u0.id
+              )
+            ),
         order_by: []
       )
 

@@ -65,7 +65,6 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       schema
       |> add_select(select)
       |> order_by(^add_order_by(order_by, opts))
-      |> maybe_add_join(ast)
       |> where(^query)
       |> add_limit(limit)
 
@@ -138,13 +137,17 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
         if is_case_insensitive(opts) do
-          dynamic(
-            [],
-            fragment("lower(?)", field(as(^association), ^assoc_selector)) ==
-              fragment("lower(?)", ^value)
-          )
+          subquery_where =
+            dynamic(
+              [],
+              fragment("lower(?)", field(as(^association), ^assoc_selector)) ==
+                fragment("lower(?)", ^value)
+            )
+
+          build_association_where(association, subquery_where, opts)
         else
-          dynamic([], field(as(^association), ^assoc_selector) == ^value)
+          subquery_where = dynamic([], field(as(^association), ^assoc_selector) == ^value)
+          build_association_where(association, subquery_where, opts)
         end
 
       false ->
@@ -169,17 +172,23 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         if is_case_insensitive(opts) do
           value = String.replace(value, "*", "%", global: true)
 
-          dynamic(
-            [],
-            ilike(field(as(^association), ^assoc_selector), ^value)
-          )
+          subquery_where =
+            dynamic(
+              [],
+              ilike(field(as(^association), ^assoc_selector), ^value)
+            )
+
+          build_association_where(association, subquery_where, opts)
         else
           value = String.replace(value, "*", "%", global: true)
 
-          dynamic(
-            [],
-            like(field(as(^association), ^assoc_selector), ^value)
-          )
+          subquery_where =
+            dynamic(
+              [],
+              like(field(as(^association), ^assoc_selector), ^value)
+            )
+
+          build_association_where(association, subquery_where, opts)
         end
 
       false ->
@@ -201,13 +210,17 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
         if is_case_insensitive(opts) do
-          dynamic(
-            [],
-            fragment("lower(?)", field(as(^association), ^assoc_selector)) !=
-              fragment("lower(?)", ^value)
-          )
+          subquery_where =
+            dynamic(
+              [],
+              fragment("lower(?)", field(as(^association), ^assoc_selector)) !=
+                fragment("lower(?)", ^value)
+            )
+
+          build_association_where(association, subquery_where, opts)
         else
-          dynamic([], field(as(^association), ^assoc_selector) != ^value)
+          subquery_where = dynamic([], field(as(^association), ^assoc_selector) != ^value)
+          build_association_where(association, subquery_where, opts)
         end
 
       false ->
@@ -231,10 +244,15 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
         if is_case_insensitive(opts) do
           value = String.replace(value, "*", "%", global: true)
-          dynamic([], not ilike(field(as(^association), ^assoc_selector), ^value))
+
+          subquery_where =
+            dynamic([], not ilike(field(as(^association), ^assoc_selector), ^value))
+
+          build_association_where(association, subquery_where, opts)
         else
           value = String.replace(value, "*", "%", global: true)
-          dynamic([], not like(field(as(^association), ^assoc_selector), ^value))
+          subquery_where = dynamic([], not like(field(as(^association), ^assoc_selector), ^value))
+          build_association_where(association, subquery_where, opts)
         end
 
       false ->
@@ -250,12 +268,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  defp list_equal(selector_name, value, _opts) do
+  defp list_equal(selector_name, value, opts) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic([], field(as(^association), ^assoc_selector) in ^value)
+        subquery_where = dynamic([], field(as(^association), ^assoc_selector) in ^value)
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -264,12 +283,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  defp list_not_equal(selector_name, value, _opts) do
+  defp list_not_equal(selector_name, value, opts) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic([], field(as(^association), ^assoc_selector) not in ^value)
+        subquery_where = dynamic([], field(as(^association), ^assoc_selector) not in ^value)
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -278,11 +298,15 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  defp boolean_equal(selector_name, value, _opts) do
+  defp boolean_equal(selector_name, value, opts) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
-        dynamic([], field(as(^association), ^assoc_selector) == ^to_string(value))
+
+        subquery_where =
+          dynamic([], field(as(^association), ^assoc_selector) == ^to_string(value))
+
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -291,11 +315,15 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  defp boolean_not_equal(selector_name, value, _opts) do
+  defp boolean_not_equal(selector_name, value, opts) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
-        dynamic([], field(as(^association), ^assoc_selector) != ^to_string(value))
+
+        subquery_where =
+          dynamic([], field(as(^association), ^assoc_selector) != ^to_string(value))
+
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -398,12 +426,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def ge_filter(selector_name, value) when is_number(value) do
+  def ge_filter(selector_name, value, opts) when is_number(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic([], field(as(^association), ^assoc_selector) >= ^value)
+        subquery_where = dynamic([], field(as(^association), ^assoc_selector) >= ^value)
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -412,15 +441,18 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def ge_filter(selector_name, value) when is_binary(value) do
+  def ge_filter(selector_name, value, opts) when is_binary(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic(
-          [],
-          field(as(^association), ^assoc_selector) >= fragment("?::date", ^to_string(value))
-        )
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) >= fragment("?::date", ^to_string(value))
+          )
+
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -429,12 +461,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def gt_filter(selector_name, value) when is_number(value) do
+  def gt_filter(selector_name, value, opts) when is_number(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic([], field(as(^association), ^assoc_selector) > ^value)
+        subquery_where = dynamic([], field(as(^association), ^assoc_selector) > ^value)
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -443,15 +476,18 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def gt_filter(selector_name, value) when is_binary(value) do
+  def gt_filter(selector_name, value, opts) when is_binary(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic(
-          [],
-          field(as(^association), ^assoc_selector) > fragment("?::date", ^to_string(value))
-        )
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) > fragment("?::date", ^to_string(value))
+          )
+
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -460,12 +496,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def le_filter(selector_name, value) when is_number(value) do
+  def le_filter(selector_name, value, opts) when is_number(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic([], field(as(^association), ^assoc_selector) <= ^value)
+        subquery_where = dynamic([], field(as(^association), ^assoc_selector) <= ^value)
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -474,15 +511,18 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def le_filter(selector_name, value) when is_binary(value) do
+  def le_filter(selector_name, value, opts) when is_binary(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic(
-          [],
-          field(as(^association), ^assoc_selector) <= fragment("?::date", ^to_string(value))
-        )
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) <= fragment("?::date", ^to_string(value))
+          )
+
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -491,12 +531,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def lt_filter(selector_name, value) when is_number(value) do
+  def lt_filter(selector_name, value, opts) when is_number(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic([], field(as(^association), ^assoc_selector) < ^value)
+        subquery_where = dynamic([], field(as(^association), ^assoc_selector) < ^value)
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -505,15 +546,18 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
-  def lt_filter(selector_name, value) when is_binary(value) do
+  def lt_filter(selector_name, value, opts) when is_binary(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        dynamic(
-          [],
-          field(as(^association), ^assoc_selector) < fragment("?::date", ^to_string(value))
-        )
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) < fragment("?::date", ^to_string(value))
+          )
+
+        build_association_where(association, subquery_where, opts)
 
       false ->
         selector_name = string_to_atom(selector_name)
@@ -522,6 +566,22 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
+  defp build_association_where(association, subquery_where, opts) do
+    schema = Keyword.get(opts, :schema)
+
+    [primary_key | _] = schema.__schema__(:primary_key)
+
+    dynamic(
+      [qu],
+      field(qu, ^primary_key) in subquery(
+        from(sc in schema)
+        |> join(:inner, [sc], re in assoc(sc, ^association), as: ^association)
+        |> where(^subquery_where)
+        |> select([sc], field(sc, ^primary_key))
+      )
+    )
+  end
+
   defp do_handle_selector_and_value_with_comparison(
          selector_name,
          "ge",
@@ -531,7 +591,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      {:ok, {ge_filter(selector_name, value), opts}}
+      {:ok, {ge_filter(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -546,7 +606,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      {:ok, {gt_filter(selector_name, value), opts}}
+      {:ok, {gt_filter(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -561,7 +621,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      {:ok, {le_filter(selector_name, value), opts}}
+      {:ok, {le_filter(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -576,7 +636,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
        )
        when is_number(value) do
     if is_selector_allowed?(selector_name, opts) do
-      {:ok, {lt_filter(selector_name, value), opts}}
+      {:ok, {lt_filter(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
@@ -593,7 +653,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     if is_selector_allowed?(selector_name, opts) do
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok, {ge_filter(selector_name, date), opts}}
+          {:ok, {ge_filter(selector_name, date, opts), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -614,7 +674,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     if is_selector_allowed?(selector_name, opts) do
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok, {gt_filter(selector_name, date), opts}}
+          {:ok, {gt_filter(selector_name, date, opts), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -635,7 +695,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     if is_selector_allowed?(selector_name, opts) do
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok, {le_filter(selector_name, date), opts}}
+          {:ok, {le_filter(selector_name, date, opts), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -656,7 +716,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     if is_selector_allowed?(selector_name, opts) do
       case maybe_date_time_value(value) do
         {:ok, date} ->
-          {:ok, {lt_filter(selector_name, date), opts}}
+          {:ok, {lt_filter(selector_name, date, opts), opts}}
 
         {:error, err} ->
           {:error, err}
@@ -687,22 +747,6 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp add_limit(schema, limit) do
     limit(schema, ^limit)
-  end
-
-  defp maybe_add_join(query, ast) do
-    ast
-    |> get_selectors()
-    |> Enum.reduce(query, fn s, query ->
-      case maybe_associations_selector?(s) do
-        true ->
-          {association, _} = get_association_selector(s)
-          association = String.to_existing_atom(association)
-          query |> join(:left, [p], q in assoc(p, ^association), as: ^association)
-
-        false ->
-          query
-      end
-    end)
   end
 
   defp add_order_by(order_by, opts) do
