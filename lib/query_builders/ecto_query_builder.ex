@@ -566,6 +566,26 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     end
   end
 
+  def isnull_filter(selector_name, value, opts) when is_boolean(value) do
+    case maybe_associations_selector?(selector_name) do
+      true ->
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+
+        subquery_where =
+          dynamic(
+            [],
+            is_nil(field(as(^association), ^assoc_selector)) == ^value
+          )
+
+        build_association_where(association, subquery_where, opts)
+
+      false ->
+        selector_name = string_to_atom(selector_name)
+
+        dynamic([q], is_nil(field(q, ^selector_name)) == ^value)
+    end
+  end
+
   defp build_association_where(association, subquery_where, opts) do
     schema = Keyword.get(opts, :schema)
 
@@ -721,6 +741,21 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         {:error, err} ->
           {:error, err}
       end
+    else
+      {:error, :selector_not_allowed}
+    end
+  end
+
+  defp do_handle_selector_and_value_with_comparison(
+         selector_name,
+         "isnull",
+         value,
+         _ast,
+         {_query, opts}
+       )
+       when is_boolean(value) do
+    if is_selector_allowed?(selector_name, opts) do
+      {:ok, {isnull_filter(selector_name, value, opts), opts}}
     else
       {:error, :selector_not_allowed}
     end
