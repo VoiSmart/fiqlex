@@ -415,6 +415,30 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "fiql filter with associations and isnull filter" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.description=isnull=false"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: is_nil(as(:groups).description) == ^false,
+              select: u0.id
+            )
+          ),
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "fiql filter with associations comparing dates with gt and lt" do
     {:ok, result} =
       FIQLEx.build_query(
@@ -676,6 +700,37 @@ defmodule EctoQueryBuilderTest do
       )
 
     assert res == {:error, :invalid_comparison_value}
+  end
+
+  test "fiql filter using isnull operator" do
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("middlename=isnull=true"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: is_nil(u0.middlename) == ^true,
+        order_by: [],
+        select: [:middlename]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter using isnull operator with non-boolean value" do
+    res =
+      FIQLEx.build_query(
+        FIQLEx.parse!("middlename=isnull=foo"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    assert res == {:error, :invalid_value}
   end
 
   test "fiql filter with a list of value" do
