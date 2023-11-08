@@ -13,6 +13,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   * `limit`: A limit for the query
   * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
   * `transformer`: Function that takes a selector and its value as parameter and must return a tuple {new_selector, new_value} with the transformed values
+  * `casting_assoc_fields`: Function that takes an association and a field as parameter and must return ecto type for that field
 
 
   ### Select option
@@ -146,7 +147,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
           build_association_where(association, subquery_where, opts)
         else
-          subquery_where = dynamic([], field(as(^association), ^assoc_selector) == ^value)
+          subquery_where =
+            dynamic(
+              [],
+              field(as(^association), ^assoc_selector) ==
+                type(^value, ^assoc_value_type(opts, association, assoc_selector))
+            )
+
           build_association_where(association, subquery_where, opts)
         end
 
@@ -953,5 +960,16 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       nil -> schema
       _ -> initial_query
     end
+  end
+
+  defp assoc_value_type(opts, association, assoc_selector) do
+    Keyword.get(opts, :casting_assoc_fields, &default_casting_assoc_fields/2).(
+      association,
+      assoc_selector
+    )
+  end
+
+  def default_casting_assoc_fields(_association, _assoc_selector) do
+    :string
   end
 end

@@ -42,7 +42,42 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).name == ^"develop",
+              where: as(:groups).name == type(^"develop", :string),
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations and binary equal filter with cast assoc value" do
+    casting_assoc_fields_fn = fn _table, field ->
+      case field do
+        :sessionexpire -> :integer
+        _ -> :string
+      end
+    end
+
+    {:ok, result} =
+      FIQLEx.build_query(
+        FIQLEx.parse!("groups.sessionexpire==10;firstname==John"),
+        EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors,
+        casting_assoc_fields: casting_assoc_fields_fn
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).sessionexpire == type(^"10", :integer),
               select: u0.id
             )
           ) and u0.firstname == ^"John",
@@ -69,7 +104,7 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).name == ^"develop",
+              where: as(:groups).name == type(^"develop", :string),
               select: u0.id
             )
           ) and
@@ -77,7 +112,7 @@ defmodule EctoQueryBuilderTest do
                from(u0 in FIQLEx.Test.Support.User,
                  join: g1 in assoc(u0, :domain),
                  as: :domain,
-                 where: as(:domain).organization == ^"acme",
+                 where: as(:domain).organization == type(^"acme", :string),
                  select: u0.id
                )
              ) and
