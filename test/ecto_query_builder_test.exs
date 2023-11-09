@@ -139,7 +139,9 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: fragment("lower(?)", as(:groups).name) == fragment("lower(?)", ^"develop"),
+              where:
+                fragment("lower(?)", as(:groups).name) ==
+                  fragment("lower(?)", type(^"develop", :string)),
               select: u0.id
             )
           ) and
@@ -215,7 +217,7 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).name != ^"develop",
+              where: as(:groups).name != type(^"develop", :string),
               select: u0.id
             )
           ),
@@ -240,7 +242,9 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: fragment("lower(?)", as(:groups).name) != fragment("lower(?)", ^"develop"),
+              where:
+                fragment("lower(?)", as(:groups).name) !=
+                  fragment("lower(?)", type(^"develop", :string)),
               select: u0.id
             )
           ),
@@ -547,12 +551,20 @@ defmodule EctoQueryBuilderTest do
   end
 
   test "fiql filter associations comparing integer numbers with ge and le operator" do
+    casting_assoc_fields_fn = fn _table, field ->
+      case field do
+        :sessionexpire -> :integer
+        _ -> :string
+      end
+    end
+
     {:ok, result} =
       FIQLEx.build_query(
         FIQLEx.parse!("groups.sessionexpire=ge=25,groups.sessionexpire=le=18"),
         EctoQueryBuilder,
         schema: UserSchema,
-        select: :from_selectors
+        select: :from_selectors,
+        casting_assoc_fields: casting_assoc_fields_fn
       )
 
     expected =
@@ -562,7 +574,7 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).sessionexpire >= ^25,
+              where: as(:groups).sessionexpire >= type(^25, :integer),
               select: u0.id
             )
           ) or
@@ -570,7 +582,7 @@ defmodule EctoQueryBuilderTest do
               from(u0 in FIQLEx.Test.Support.User,
                 join: g1 in assoc(u0, :groups),
                 as: :groups,
-                where: as(:groups).sessionexpire <= ^18,
+                where: as(:groups).sessionexpire <= type(^18, :integer),
                 select: u0.id
               )
             ),
@@ -581,12 +593,20 @@ defmodule EctoQueryBuilderTest do
   end
 
   test "fiql filter associations comparing integer numbers with gt and lt operator" do
+    casting_assoc_fields_fn = fn _table, field ->
+      case field do
+        :sessionexpire -> :integer
+        _ -> :string
+      end
+    end
+
     {:ok, result} =
       FIQLEx.build_query(
         FIQLEx.parse!("groups.sessionexpire=gt=25,groups.sessionexpire=lt=18"),
         EctoQueryBuilder,
         schema: UserSchema,
-        select: :from_selectors
+        select: :from_selectors,
+        casting_assoc_fields: casting_assoc_fields_fn
       )
 
     expected =
@@ -596,7 +616,7 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).sessionexpire > ^25,
+              where: as(:groups).sessionexpire > type(^25, :integer),
               select: u0.id
             )
           ) or
@@ -604,7 +624,7 @@ defmodule EctoQueryBuilderTest do
               from(u0 in FIQLEx.Test.Support.User,
                 join: g1 in assoc(u0, :groups),
                 as: :groups,
-                where: as(:groups).sessionexpire < ^18,
+                where: as(:groups).sessionexpire < type(^18, :integer),
                 select: u0.id
               )
             ),

@@ -142,7 +142,10 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
             dynamic(
               [],
               fragment("lower(?)", field(as(^association), ^assoc_selector)) ==
-                fragment("lower(?)", ^value)
+                fragment(
+                  "lower(?)",
+                  type(^value, ^assoc_value_type(opts, association, assoc_selector))
+                )
             )
 
           build_association_where(association, subquery_where, opts)
@@ -221,12 +224,21 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
             dynamic(
               [],
               fragment("lower(?)", field(as(^association), ^assoc_selector)) !=
-                fragment("lower(?)", ^value)
+                fragment(
+                  "lower(?)",
+                  type(^value, ^assoc_value_type(opts, association, assoc_selector))
+                )
             )
 
           build_association_where(association, subquery_where, opts)
         else
-          subquery_where = dynamic([], field(as(^association), ^assoc_selector) != ^value)
+          subquery_where =
+            dynamic(
+              [],
+              field(as(^association), ^assoc_selector) !=
+                type(^value, ^assoc_value_type(opts, association, assoc_selector))
+            )
+
           build_association_where(association, subquery_where, opts)
         end
 
@@ -280,7 +292,15 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        subquery_where = dynamic([], field(as(^association), ^assoc_selector) in ^value)
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) in type(
+              ^value,
+              {:array, ^assoc_value_type(opts, association, assoc_selector)}
+            )
+          )
+
         build_association_where(association, subquery_where, opts)
 
       false ->
@@ -295,7 +315,15 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        subquery_where = dynamic([], field(as(^association), ^assoc_selector) not in ^value)
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) not in type(
+              ^value,
+              {:array, ^assoc_value_type(opts, association, assoc_selector)}
+            )
+          )
+
         build_association_where(association, subquery_where, opts)
 
       false ->
@@ -438,7 +466,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        subquery_where = dynamic([], field(as(^association), ^assoc_selector) >= ^value)
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) >=
+              type(^value, ^assoc_value_type(opts, association, assoc_selector))
+          )
+
         build_association_where(association, subquery_where, opts)
 
       false ->
@@ -473,7 +507,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        subquery_where = dynamic([], field(as(^association), ^assoc_selector) > ^value)
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) >
+              type(^value, ^assoc_value_type(opts, association, assoc_selector))
+          )
+
         build_association_where(association, subquery_where, opts)
 
       false ->
@@ -508,7 +548,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        subquery_where = dynamic([], field(as(^association), ^assoc_selector) <= ^value)
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) <=
+              type(^value, ^assoc_value_type(opts, association, assoc_selector))
+          )
+
         build_association_where(association, subquery_where, opts)
 
       false ->
@@ -543,7 +589,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        subquery_where = dynamic([], field(as(^association), ^assoc_selector) < ^value)
+        subquery_where =
+          dynamic(
+            [],
+            field(as(^association), ^assoc_selector) <
+              type(^value, ^assoc_value_type(opts, association, assoc_selector))
+          )
+
         build_association_where(association, subquery_where, opts)
 
       false ->
