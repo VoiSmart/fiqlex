@@ -33,22 +33,26 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   @impl true
   def init(_ast, opts) do
-    {schema_fields, schema_associations} =
+    {schema_fields, schema_associations, schema_table} =
       case Keyword.get(opts, :schema) do
         nil ->
-          {[], []}
+          {[], [], nil}
 
         schema ->
+          schema_table = schema.__schema__(:source)
+          schema_table = string_to_atom(schema_table)
+
           {Enum.map(schema.__schema__(:fields), fn field -> Atom.to_string(field) end),
            Enum.map(schema.__schema__(:associations), fn association ->
              Atom.to_string(association)
-           end)}
+           end), schema_table}
       end
 
     new_opts =
       opts
       |> Keyword.put(:schema_fields, schema_fields)
       |> Keyword.put(:schema_associations, schema_associations)
+      |> Keyword.put(:schema_table, schema_table)
 
     {"", new_opts}
   end
@@ -137,7 +141,8 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        if is_case_insensitive(opts) do
+        if is_case_insensitive(opts) and
+             field_can_be_insensitive(opts, association, assoc_selector) do
           subquery_where =
             dynamic(
               [],
@@ -162,8 +167,10 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
       false ->
         selector_name = string_to_atom(selector_name)
+        schema_table = Keyword.get(opts, :schema_table)
 
-        if is_case_insensitive(opts) do
+        if is_case_insensitive(opts) and
+             field_can_be_insensitive(opts, schema_table, selector_name) do
           dynamic(
             [q],
             fragment("lower(?)", field(q, ^selector_name)) == fragment("lower(?)", ^value)
@@ -219,7 +226,8 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       true ->
         {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-        if is_case_insensitive(opts) do
+        if is_case_insensitive(opts) and
+             field_can_be_insensitive(opts, association, assoc_selector) do
           subquery_where =
             dynamic(
               [],
@@ -245,7 +253,10 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       false ->
         selector_name = string_to_atom(selector_name)
 
-        if is_case_insensitive(opts) do
+        schema_table = Keyword.get(opts, :schema_table)
+
+        if is_case_insensitive(opts) and
+             field_can_be_insensitive(opts, schema_table, selector_name) do
           dynamic(
             [q],
             fragment("lower(?)", field(q, ^selector_name)) != fragment("lower(?)", ^value)
@@ -1023,5 +1034,12 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   def default_casting_assoc_fields(_association, _assoc_selector) do
     :string
+  end
+
+  defp field_can_be_insensitive(opts, table, field) do
+    case assoc_value_type(opts, table, field) do
+      :string -> true
+      _ -> false
+    end
   end
 end
