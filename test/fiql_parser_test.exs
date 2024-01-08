@@ -139,12 +139,36 @@ defmodule FIQLExParserTest do
              {:ok, {:op, {:selector_and_value, "my_selector", :equal, "àèìòù"}}}
   end
 
+  test "Selector with non ascii value and with single quotes" do
+    payload = "my_selector=='àèìòù'"
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, "àèìòù"}}}
+  end
+
+  test "Selector with non ascii value and with double quotes" do
+    payload = "my_selector==\"àèìòù\""
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, "àèìòù"}}}
+  end
+
   test "Selector with unicode value" do
     payload = "my_selector==€€€"
     {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
 
     assert :fiql_parser.parse(tokens) ==
              {:ok, {:op, {:selector_and_value, "my_selector", :equal, "€€€"}}}
+  end
+
+  test "Selector with unicode value single quoted" do
+    payload = "my_selector=='ф'"
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, "ф"}}}
   end
 
   test "Selector with list value" do

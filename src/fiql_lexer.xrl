@@ -39,10 +39,10 @@ list_to_bool(Chars) ->
   to_bool(string:lowercase(list_to_binary(Chars))).
 
 from_double_quoted(Chars) ->
-  binary_to_list(re:replace(string:slice(list_to_binary(Chars), 1, string:length(list_to_binary(Chars))-2), "\\\\\"", "\"", [global, {return, binary}])).
+  unicode:characters_to_list(re:replace(string:slice(unicode:characters_to_binary(Chars), 1, string:length(unicode:characters_to_binary(Chars))-2), "\\\\\"", "\"", [global, {return, binary}])).
 
 from_single_quoted(Chars) ->
-  binary_to_list(re:replace(string:slice(list_to_binary(Chars), 1, string:length(list_to_binary(Chars))-2), "\\\\'", "'", [global, {return, binary}])).
+  unicode:characters_to_list(re:replace(string:slice(unicode:characters_to_binary(Chars), 1, string:length(unicode:characters_to_binary(Chars))-2), "\\\\'", "'", [global, {return, binary}])).
 
 strip_equals(Chars) ->
   binary_to_list(string:slice(list_to_binary(Chars), 1, string:length(list_to_binary(Chars))-2)).
