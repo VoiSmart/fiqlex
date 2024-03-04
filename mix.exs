@@ -18,6 +18,7 @@ defmodule FIQLEx.MixProject do
         main: "FIQLEx",
         extras: ["README.md"]
       ],
+      compilers: [:leex, :yecc] ++ Mix.compilers(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
