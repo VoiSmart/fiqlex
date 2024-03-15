@@ -639,12 +639,13 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   def isnull_filter(selector_name, value, opts) when is_boolean(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
-        case get_association_selector_to_atom(selector_name) do
-          {association, :id} ->
-            assoc_id_field = String.to_existing_atom("#{association}_id")
-            dynamic([q], is_nil(field(q, ^assoc_id_field)) == ^value)
+        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
 
-          {association, assoc_selector} ->
+        case get_owner_key_if_selecting_assoc_pk(association, assoc_selector, opts) do
+          {:ok, owner_key} ->
+            dynamic([q], is_nil(field(q, ^owner_key)) == ^value)
+
+          :not_selecting_assoc_pk ->
             subquery_where =
               dynamic(
                 [],
@@ -675,6 +676,24 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         |> select([sc], field(sc, ^primary_key))
       )
     )
+  end
+
+  defp get_owner_key_if_selecting_assoc_pk(association, assoc_selector, opts) do
+    # this is for completeness, but in 99.99% of cases we would have:
+    # owner_key = String.to_existing_atom("#{association}_id")
+    # related_key = :id
+    schema = Keyword.fetch!(opts, :schema)
+    case schema.__schema__(:association, association) do
+      %{owner_key: owner_key, related_key: related_key} ->
+        case related_key do
+          ^assoc_selector -> {:ok, owner_key}
+          _ -> :not_selecting_assoc_pk
+        end
+
+      _ ->
+        # Ecto.Association.HasThrough and Ecto.Association.ManyToMany end up here (no related_key)
+        :not_selecting_assoc_pk
+    end
   end
 
   defp do_handle_selector_and_value_with_comparison(
