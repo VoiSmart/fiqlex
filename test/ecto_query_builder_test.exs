@@ -478,6 +478,22 @@ defmodule EctoQueryBuilderTest do
     assert inspect(expected) == inspect(result)
   end
 
+  test "fiql filter with isnull filter on id of associated record" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("domain.id=isnull=false"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        where: is_nil(u0.domain_id) == ^false,
+        order_by: []
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
   test "fiql filter with associations comparing dates with gt and lt" do
     {:ok, result} =
       FIQLEx.build_query(
