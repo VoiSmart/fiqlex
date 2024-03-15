@@ -639,15 +639,20 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   def isnull_filter(selector_name, value, opts) when is_boolean(value) do
     case maybe_associations_selector?(selector_name) do
       true ->
-        {association, assoc_selector} = get_association_selector_to_atom(selector_name)
+        case get_association_selector_to_atom(selector_name) do
+          {association, :id} ->
+            assoc_id_field = String.to_existing_atom("#{association}_id")
+            dynamic([q], is_nil(field(q, ^assoc_id_field)) == ^value)
 
-        subquery_where =
-          dynamic(
-            [],
-            is_nil(field(as(^association), ^assoc_selector)) == ^value
-          )
+          {association, assoc_selector} ->
+            subquery_where =
+              dynamic(
+                [],
+                is_nil(field(as(^association), ^assoc_selector)) == ^value
+              )
 
-        build_association_where(association, subquery_where, opts)
+            build_association_where(association, subquery_where, opts)
+        end
 
       false ->
         selector_name = string_to_atom(selector_name)
