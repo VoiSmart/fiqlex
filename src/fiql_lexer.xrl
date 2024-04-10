@@ -4,8 +4,8 @@ SELECTOR                = [0-9a-zA-Z:._]+
 ARG_TXT                 = [^\s\t\n\r"';,=!\(\)]+
 ARG_DOUBLE_QUOTED_TXT   = "([^"\\]|(\\"))+"
 ARG_SINGLE_QUOTED_TXT   = '([^'\\]|(\\'))+'
-ARG_INT                 = (\+|-)?[0-9]+
-ARG_FLOAT               = (\+|-)?[0-9]+\.[0-9]+((E|e)(\+|-)?[0-9]+)?
+ARG_INT                 = (\+|-)?[1-9][0-9]*
+ARG_FLOAT               = (\+|-)?[1-9][0-9]*\.[0-9]+((E|e)(\+|-)?[0-9]+)?
 ARG_BOOL                = ((t|T)(r|R)(u|U)(e|E))|((f|F)(a|A)(l|L)(s|S)(e|E))
 COMPARISON              = =[0-9a-z]+=
 WHITESPACE              = [\s\t\n\r]
