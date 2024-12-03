@@ -501,7 +501,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         subquery_where =
           dynamic(
             [],
-            field(as(^association), ^assoc_selector) >= fragment("?::date", ^to_string(value))
+            field(as(^association), ^assoc_selector) >= ^to_string(value)
           )
 
         build_association_where(association, subquery_where, opts)
@@ -509,7 +509,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       false ->
         selector_name = string_to_atom(selector_name)
 
-        dynamic([q], field(q, ^selector_name) >= fragment("?::date", ^to_string(value)))
+        dynamic([q], field(q, ^selector_name) >= ^to_string(value))
     end
   end
 
@@ -542,7 +542,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         subquery_where =
           dynamic(
             [],
-            field(as(^association), ^assoc_selector) > fragment("?::date", ^to_string(value))
+            field(as(^association), ^assoc_selector) > ^to_string(value)
           )
 
         build_association_where(association, subquery_where, opts)
@@ -550,7 +550,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       false ->
         selector_name = string_to_atom(selector_name)
 
-        dynamic([q], field(q, ^selector_name) > fragment("?::date", ^to_string(value)))
+        dynamic([q], field(q, ^selector_name) > ^to_string(value))
     end
   end
 
@@ -583,7 +583,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         subquery_where =
           dynamic(
             [],
-            field(as(^association), ^assoc_selector) <= fragment("?::date", ^to_string(value))
+            field(as(^association), ^assoc_selector) <= ^to_string(value)
           )
 
         build_association_where(association, subquery_where, opts)
@@ -591,7 +591,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       false ->
         selector_name = string_to_atom(selector_name)
 
-        dynamic([q], field(q, ^selector_name) <= fragment("?::date", ^to_string(value)))
+        dynamic([q], field(q, ^selector_name) <= ^to_string(value))
     end
   end
 
@@ -624,7 +624,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
         subquery_where =
           dynamic(
             [],
-            field(as(^association), ^assoc_selector) < fragment("?::date", ^to_string(value))
+            field(as(^association), ^assoc_selector) < ^to_string(value)
           )
 
         build_association_where(association, subquery_where, opts)
@@ -632,7 +632,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       false ->
         selector_name = string_to_atom(selector_name)
 
-        dynamic([q], field(q, ^selector_name) < fragment("?::date", ^to_string(value)))
+        dynamic([q], field(q, ^selector_name) < ^to_string(value))
     end
   end
 
@@ -683,6 +683,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
     # owner_key = String.to_existing_atom("#{association}_id")
     # related_key = :id
     schema = Keyword.fetch!(opts, :schema)
+
     case schema.__schema__(:association, association) do
       %{owner_key: owner_key, related_key: related_key} ->
         case related_key do

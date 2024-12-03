@@ -512,7 +512,7 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).inserted_at > fragment("?::date", ^"2022-10-02T18:23:03Z"),
+              where: as(:groups).inserted_at > ^"2022-10-02T18:23:03Z",
               select: u0.id
             )
           ) and
@@ -520,7 +520,7 @@ defmodule EctoQueryBuilderTest do
               from(u0 in FIQLEx.Test.Support.User,
                 join: g1 in assoc(u0, :groups),
                 as: :groups,
-                where: as(:groups).inserted_at < fragment("?::date", ^"2022-10-31T18:23:03Z"),
+                where: as(:groups).inserted_at < ^"2022-10-31T18:23:03Z",
                 select: u0.id
               )
             ),
@@ -548,7 +548,7 @@ defmodule EctoQueryBuilderTest do
             from(u0 in FIQLEx.Test.Support.User,
               join: g1 in assoc(u0, :groups),
               as: :groups,
-              where: as(:groups).inserted_at >= fragment("?::date", ^"2022-10-02T18:23:03Z"),
+              where: as(:groups).inserted_at >= ^"2022-10-02T18:23:03Z",
               select: u0.id
             )
           ) and
@@ -556,7 +556,7 @@ defmodule EctoQueryBuilderTest do
               from(u0 in FIQLEx.Test.Support.User,
                 join: g1 in assoc(u0, :groups),
                 as: :groups,
-                where: as(:groups).inserted_at <= fragment("?::date", ^"2022-10-31T18:23:03Z"),
+                where: as(:groups).inserted_at <= ^"2022-10-31T18:23:03Z",
                 select: u0.id
               )
             ),
@@ -894,8 +894,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.inserted_at > fragment("?::date", ^"2022-10-02T18:23:03Z") and
-            u0.inserted_at < fragment("?::date", ^"2022-10-31T18:23:03Z"),
+          u0.inserted_at > ^"2022-10-02T18:23:03Z" and
+            u0.inserted_at < ^"2022-10-31T18:23:03Z",
         order_by: [],
         select: [:inserted_at]
       )
@@ -915,8 +915,8 @@ defmodule EctoQueryBuilderTest do
     expected =
       from(u0 in FIQLEx.Test.Support.User,
         where:
-          u0.inserted_at >= fragment("?::date", ^"2022-10-02T18:23:03Z") and
-            u0.inserted_at <= fragment("?::date", ^"2022-10-31T18:23:03Z"),
+          u0.inserted_at >= ^"2022-10-02T18:23:03Z" and
+            u0.inserted_at <= ^"2022-10-31T18:23:03Z",
         order_by: [],
         select: [:inserted_at]
       )
