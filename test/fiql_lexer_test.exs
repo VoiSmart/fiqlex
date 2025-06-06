@@ -95,7 +95,31 @@ defmodule FIQLExLexerTest do
               [
                 {:selector, 1, 'my_selector'},
                 {:equal, 1},
-                {:arg_int, 1, 123}
+                {:value, 1, '+123'}
+              ], 1}
+  end
+
+  test "Selector with integer value with leading zero" do
+    payload = "my_selector==0123"
+
+    assert :fiql_lexer.string(to_charlist(payload)) ==
+             {:ok,
+              [
+                {:selector, 1, 'my_selector'},
+                {:equal, 1},
+                {:selector, 1, '0123'}
+              ], 1}
+  end
+
+  test "Selector with positive integer value with leading zero" do
+    payload = "my_selector==+0123"
+
+    assert :fiql_lexer.string(to_charlist(payload)) ==
+             {:ok,
+              [
+                {:selector, 1, 'my_selector'},
+                {:equal, 1},
+                {:value, 1, '+0123'}
               ], 1}
   end
 
@@ -120,6 +144,18 @@ defmodule FIQLExLexerTest do
                 {:selector, 1, 'my_selector'},
                 {:equal, 1},
                 {:arg_float, 1, 123.5}
+              ], 1}
+  end
+
+  test "Selector with float value with leading zero" do
+    payload = "my_selector==0.15"
+
+    assert :fiql_lexer.string(to_charlist(payload)) ==
+             {:ok,
+              [
+                {:selector, 1, 'my_selector'},
+                {:equal, 1},
+                {:arg_float, 1, 0.15}
               ], 1}
   end
 
