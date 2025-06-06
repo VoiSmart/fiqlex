@@ -54,7 +54,23 @@ defmodule FIQLExParserTest do
     {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
 
     assert :fiql_parser.parse(tokens) ==
-             {:ok, {:op, {:selector_and_value, "my_selector", :equal, 123}}}
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, "+123"}}}
+  end
+
+  test "Selector with positive integer value leading zero" do
+    payload = "my_selector==+03123"
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, "+03123"}}}
+  end
+
+  test "Selector with single zero value" do
+    payload = "my_selector==0"
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, 0}}}
   end
 
   test "Selector with negative integer value" do
@@ -71,6 +87,14 @@ defmodule FIQLExParserTest do
 
     assert :fiql_parser.parse(tokens) ==
              {:ok, {:op, {:selector_and_value, "my_selector", :equal, 123.5}}}
+  end
+
+  test "Selector with float value with leading zero" do
+    payload = "my_selector==0.1235"
+    {:ok, tokens, _} = :fiql_lexer.string(to_charlist(payload))
+
+    assert :fiql_parser.parse(tokens) ==
+             {:ok, {:op, {:selector_and_value, "my_selector", :equal, 0.1235}}}
   end
 
   test "Selector with positive float value" do
