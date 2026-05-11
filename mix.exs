@@ -50,9 +50,9 @@ defmodule FIQLEx.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ecto, "~> 3.10"},
+      {:ecto, "~> 3.11"},
       {:timex, "~> 3.5"},
-      {:ecto_sql, "~> 3.10", optional: true},
+      {:ecto_sql, "~> 3.11", optional: true},
       {:credo, "~> 1.6", only: [:dev, :test]},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test},

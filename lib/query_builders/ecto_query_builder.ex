@@ -14,6 +14,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
   * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
   * `transformer`: Function that takes a selector and its value as parameter and must return a tuple {new_selector, new_value} with the transformed values
   * `casting_assoc_fields`: Function that takes an association and a field as parameter and must return ecto type for that field
+  * `mysql_opts`: MySQL/MariaDB-specific options. Currently supports `ignore_indexes`, a list of indexes translated into Ecto table hints.
 
 
   ### Select option
@@ -68,6 +69,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
     final_query =
       schema
+      |> maybe_add_mysql_hints(opts)
       |> add_select(select)
       |> order_by(^add_order_by(order_by, opts))
       |> where(^query)
@@ -671,6 +673,7 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
       [qu],
       field(qu, ^primary_key) in subquery(
         from(sc in schema)
+        |> maybe_add_mysql_hints(opts)
         |> join(:inner, [sc], re in assoc(sc, ^association), as: ^association)
         |> where(^subquery_where)
         |> select([sc], field(sc, ^primary_key))
@@ -877,6 +880,20 @@ defmodule FIQLEx.QueryBuilders.EctoQueryBuilder do
 
   defp add_limit(schema, limit) do
     limit(schema, ^limit)
+  end
+
+  defp maybe_add_mysql_hints(queryable, opts) do
+    opts
+    |> Keyword.get(:mysql_opts, [])
+    |> Keyword.get(:ignore_indexes)
+    |> case do
+      [_h | _t] = idxs ->
+        frag = "IGNORE INDEX (#{Enum.join(idxs, ", ")})"
+        from(queryable, hints: [unsafe_fragment(^frag)])
+
+      _ ->
+        queryable
+    end
   end
 
   defp add_order_by(order_by, opts) do

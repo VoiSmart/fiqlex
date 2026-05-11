@@ -15,6 +15,7 @@ if Code.ensure_loaded?(Ecto.Adapters.SQL) do
     * `offset`: An offset for the query
     * `case_sensitive`: Boolean value (default to true) to set equals case sensitive or not
     * `transformer`: Function that takes a selector and its value as parameter and must return the transformed value
+    * `mysql_opts`: MySQL/MariaDB-specific options. Currently supports `ignore_indexes`, a list of indexes which will be ignored using the IGNORE INDEX syntax
 
 
     ### Select option
@@ -174,7 +175,8 @@ if Code.ensure_loaded?(Ecto.Adapters.SQL) do
       offset = Keyword.get(opts, :offset, "")
 
       final_query =
-        ("SELECT " <> select <> " FROM " <> table <> " WHERE " <> query)
+        ("SELECT " <>
+           select <> " FROM " <> table <> maybe_ignore_indexes(opts) <> " WHERE " <> query)
         |> add_to_query("ORDER BY", order_by)
         |> add_to_query("LIMIT", limit)
         |> add_to_query("OFFSET", offset)
@@ -186,6 +188,16 @@ if Code.ensure_loaded?(Ecto.Adapters.SQL) do
         {repo, model} ->
           SQL.query(repo, final_query, [])
           |> load_into_model(repo, model)
+      end
+    end
+
+    defp maybe_ignore_indexes(opts) do
+      opts
+      |> Keyword.get(:mysql_opts, [])
+      |> Keyword.get(:ignore_indexes)
+      |> case do
+        [_h | _t] = idxs -> " IGNORE INDEX (#{Enum.join(idxs, ", ")}) "
+        _ -> ""
       end
     end
 
