@@ -1466,4 +1466,51 @@ defmodule EctoQueryBuilderTest do
         order_by: [{:asc, :firstname}]
       )
   end
+
+  test "fiql filter uses the ignore indexes hint" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors,
+        mysql_opts: [ignore_indexes: ["idx_firstname", "idx_lastname"]]
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        hints: ["IGNORE INDEX (idx_firstname, idx_lastname)"],
+        where: u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
+
+  test "fiql filter with associations uses the ignore indexes hint" do
+    {:ok, result} =
+      FIQLEx.build_query(FIQLEx.parse!("groups.name==develop;firstname==John"), EctoQueryBuilder,
+        schema: UserSchema,
+        select: :from_selectors,
+        mysql_opts: [ignore_indexes: ["idx_firstname", "idx_lastname"]]
+      )
+
+    expected =
+      from(u0 in FIQLEx.Test.Support.User,
+        hints: ["IGNORE INDEX (idx_firstname, idx_lastname)"],
+        where:
+          u0.id in subquery(
+            from(u0 in FIQLEx.Test.Support.User,
+              hints: ["IGNORE INDEX (idx_firstname, idx_lastname)"],
+              join: g1 in assoc(u0, :groups),
+              as: :groups,
+              where: as(:groups).name == type(^"develop", :string),
+              select: u0.id
+            )
+          ) and u0.firstname == ^"John",
+        order_by: [],
+        select: [:firstname]
+      )
+
+    assert inspect(expected) == inspect(result)
+  end
 end
